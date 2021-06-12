@@ -1,9 +1,9 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-06 15:17:43
+ * @LastEditTime: 2021-06-12 19:20:58
  */
-import React from 'react';  //核心库
-import ReactDOM from 'react-dom'; //Dom渲染库
+import React from './core/react';  //核心库
+import ReactDOM from './core/react-dom'; //Dom渲染库
 // babel会把jsx语法解析为dom进行渲染，jsx实际上更像js语法
 
 // 什么叫React元素
@@ -47,27 +47,22 @@ import ReactDOM from 'react-dom'; //Dom渲染库
 // }
 // let element2 = React.createElement(Welcome1,{})
 
-class Number extends React.Component{
+class Counter extends React.Component{
  constructor(){
    super()
    this.state = {number:0}
  }
  add = ()=>{
-   this.setState(prevState=>({number:prevState.number+1}),()=>{
-     console.log(this.state.number) // 2
-   })
-   console.log(this.state.number)  //0 
-   this.setState(prevState=>({number:prevState.number+1}),()=>{
-    console.log(this.state.number) // 2
-  })
-  console.log(this.state.number) // 0
+   this.setState({number:this.state.number+1})
  }
  render(){
-   return <p onClick={this.add}>点击</p>
+   return (
+       <p onClick={this.add} className="title">点击我：{this.state.number}</p>
+   )
  }
 }
 // 核心渲染方法
 ReactDOM.render(
-  <Number/>,
+ <Counter/>,
   document.getElementById('root')
 );

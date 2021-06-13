@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-12 19:14:34
+ * @LastEditTime: 2021-06-13 11:11:48
  */
 import {updateComponent} from './react-dom'
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -25,7 +25,9 @@ class Component{
   // 暴力更新
   forceUpdate(){
     this.state = this.stateQueue.reduce((prevState,current)=>{
-      let mergeData = typeof current === 'function' ? current(this.state) : current;
+      // 因为setState可能会包含函数，所以进行区分
+      let mergeData = typeof current === 'function' ? current(prevState) : current;
+      // state合并
       return {
         ...mergeData,
         ...current
@@ -33,7 +35,6 @@ class Component{
     },this.state)
     // 清空队列
     this.stateQueue = [];
-    console.log(this.state)
     // 更新组件
     updateComponent(this)
   }

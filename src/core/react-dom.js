@@ -1,14 +1,13 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-12 19:31:24
+ * @LastEditTime: 2021-06-13 13:49:26
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
-  let element = componentInstance.render();
+  let element = componentInstance.render();  // 根据新的element得到新的dom元素
   let {type,props} = element;
-  // 根据新的element得到新的dom元素
-  let newDom = createElement(type,props);
-  // 新老节点替换
+  let newDom = createElement(type,props,componentInstance); // 根据新的element得到新的dom元素
+  // 新老节点替换，这里进行dom替换视图更新
   componentInstance.dom.parentNode.replaceChild(newDom,componentInstance.dom)
   componentInstance.dom  = newDom
 }
@@ -34,14 +33,51 @@ function render(element,container){
     type = element.type;
     props = element.props;
   }
-  let dom = createElement(type,props)
+  let dom = createElement(type,props,componentInstance)
   if(isReactComponent && componentInstance){
+    //componentInstance通过JSX编译之后默认有个dom属性，就是return里面的元素
+    // 如果当前渲染的是一个类组件，我们就让这个类组件实例的dom属性指向这个类组件创建出来的真实dom
+    // 这里的dom就是createElement返回的dom
+    console.log('componentInstance',componentInstance)
     componentInstance.dom = dom
   }
   container.appendChild(dom)
 }
+// 合成事件
+// 在事件处理函数执行前要把批量更新模式设为true
+// 这样的话在函数执行过程中会不会直接更新视图和状态了，只会缓存新的状态在updateQueue里
+// 等事件处理函数结束后才会进行实际更新
+function addEvent(dom,eventType,listener,componentInstance){
+  // 将onClick => onclick
+  eventType = eventType.toLocaleLowerCase();
+  // 添加 {}，用于存储点击事件和类组件实例，用来更改批量更新标识
+  let eventStore= dom.eventStore || (dom.eventStore = {})
+  eventStore[eventType] = {listener,componentInstance}
+  document.addEventListener(eventType.slice(2),dispatchEvent,false)
+}
+function dispatchEvent(event){
+  let {target} = event;
+  while(target){
+    // 一直冒泡往上遍历触发点击事件，模拟浏览器的冒泡
+    const {eventStore} = target;
+    if(eventStore){
+      const {listener,componentInstance} = eventStore[`on${event.type}`]
+      if(listener){
+        // 不触发视图更新
+        componentInstance.isBatchingUpdate = true;
+        // 触发函数，比如点击事件之类的
+        listener.call(componentInstance,event)
+        // 改变状态，清空事件队列
+        componentInstance.isBatchingUpdate = false;
+        // 强制更新视图
+        componentInstance.forceUpdate()
+      }
+    }
+    target = target.parentNode;
+  }
+}
 // 抽离创建元素的方法
-function createElement(type,props){
+function createElement(type,props,componentInstance){
   // 创建Dom
   let dom = document.createElement(type);
   for(let propName in props){
@@ -61,7 +97,9 @@ function createElement(type,props){
         dom.style[key] = props[propName][key]
       }
     }else if(propName.startsWith('on')){
-      dom[propName.toLocaleLowerCase()] = props[propName]
+      // dom[propName.toLocaleLowerCase()] = props[propName]
+      // dom == 点击节点 propName == 点击时间名称 props[propName] == 点击事件函数 componentInstance == 类组件
+      addEvent(dom,propName,props[propName],componentInstance)
     }else{
       // 设置属性
       dom.setAttribute(propName,props[propName])

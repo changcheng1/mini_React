@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-14 16:12:50
+ * @LastEditTime: 2021-06-14 20:23:57
  */
 import {updateComponent} from './react-dom'
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -16,6 +16,8 @@ class Component{
     this.isBatchingUpdate = false;
     // setState支持回调函数
     this.callBacksFn = []
+    // dom的实例
+    this.refs = {}
   }
   // setState包含了刷新界面的操作，就是让真实的dom和最新的虚拟Dom保持一致
   setState(state,callBackFn){
@@ -27,6 +29,8 @@ class Component{
   }
   // 暴力更新
   forceUpdate(){
+    // 如果没有setState则试图不需要更新，例如通过refs直接修改demo，所以类组件中只有通过setState触发视图更新
+    if(this.stateQueue.length === 0 ) return;
     this.state = this.stateQueue.reduce((prevState,current)=>{
       // 因为setState可能会包含函数，所以进行区分
       let mergeData = typeof current === 'function' ? current(prevState) : current;
@@ -44,6 +48,12 @@ class Component{
     this.callBacksFn = []
   }
 }
+// ref函数
+export function createRef (){
+  return {
+    current:null
+  }
+}
 // 创建元素
 function createElement(type,config,...children){
   let props = {...config,children}
@@ -54,4 +64,4 @@ function createElement(type,config,...children){
 }
 
 // eslint-disable-next-line import/no-anonymous-default-export
-export default {createElement,Component}
+export default {createElement,Component,createRef}

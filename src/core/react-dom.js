@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-14 16:12:22
+ * @LastEditTime: 2021-06-14 20:27:10
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -11,7 +11,7 @@ export function updateComponent(componentInstance) {
   componentInstance.dom.parentNode.replaceChild(newDom,componentInstance.dom)
   componentInstance.dom  = newDom
 }
-function render(element,container){
+function render(element,container,componentInstance){
   if(typeof element === 'string' || typeof element === 'number'){
     return container.appendChild(document.createTextNode(element))
   }
@@ -20,7 +20,6 @@ function render(element,container){
   props = element.props;
   // 判断是否是类组件
   let isReactComponent = type.isReactComponent;
-  let componentInstance;
   // 如果是类组件
   if(isReactComponent){
      componentInstance = new type(props); //函数组件执行后会返回一个React元素
@@ -67,7 +66,7 @@ function dispatchEvent(event){
     if(eventStore){
       const {listener,componentInstance} = eventStore[`on${event.type}`]
       if(listener){
-        // 不触发视图更新
+          // 不触发视图更新
         componentInstance.isBatchingUpdate = true;
         // 触发函数，比如点击事件之类的
         listener.call(componentInstance,event)
@@ -88,9 +87,9 @@ function createElement(type,props,componentInstance){
     if(propName === 'children'){
       // 如果接下来有多个children，进行递归，传入当前的元素，和他的父元素  
       if(Array.isArray(props.children)){
-        props.children.forEach(children=>render(children,dom))
+        props.children.forEach(children=>render(children,dom,componentInstance))
       }else{
-        render(props.children,dom)
+        render(props.children,dom,componentInstance)
       }
     }else if(propName === 'className'){
       // 设置className
@@ -108,6 +107,18 @@ function createElement(type,props,componentInstance){
       // 设置属性
       dom.setAttribute(propName,props[propName])
     }
+  }
+  // 如果Dom上有refs属性的话
+  // refs的三种写法 1.字符串 2.函数 3.createRef
+  // 1,2只支持类组件，3既支持函数组件也支持类组件
+  if(props.refs){
+   if(typeof props.refs === 'string'){
+      componentInstance.refs[props.refs] = dom
+   }else if(typeof props.refs === 'function'){
+     props.refs.call(componentInstance,dom)
+   }else if(typeof props.refs === 'object'){
+     props.refs.current = dom
+   }
   }
   return dom
 }

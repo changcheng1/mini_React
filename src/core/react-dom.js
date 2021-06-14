@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-13 13:49:26
+ * @LastEditTime: 2021-06-14 16:12:22
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -24,6 +24,7 @@ function render(element,container){
   // 如果是类组件
   if(isReactComponent){
      componentInstance = new type(props); //函数组件执行后会返回一个React元素
+     if(componentInstance.componentWillMount) componentInstance.componentWillMount();
     element = componentInstance.render()
     type = element.type; // 重新获得React元素的类型
     props = element.props;// 和属性对象
@@ -42,6 +43,9 @@ function render(element,container){
     componentInstance.dom = dom
   }
   container.appendChild(dom)
+  if(isReactComponent && componentInstance && componentInstance.componentWillUnmount){
+    componentInstance.componentWillUnmount()
+  }
 }
 // 合成事件
 // 在事件处理函数执行前要把批量更新模式设为true

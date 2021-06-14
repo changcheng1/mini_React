@@ -1,8 +1,7 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-02 19:46:28
+ * @LastEditTime: 2021-06-13 15:21:27
  */
-
 export function CreateElement(type,config={},...children){
   return {
     type,

@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-13 12:22:40
+ * @LastEditTime: 2021-06-14 16:13:07
  */
 import React from './core/react';  //核心库
 import ReactDOM from './core/react-dom'; //Dom渲染库
@@ -54,8 +54,6 @@ class Counter extends React.Component{
  }
  add = ()=>{
    this.setState({number:this.state.number+1})
-   console.log('number',this.state.number)
-   console.log('number',this.state.number)
  }
  render(){
    return (

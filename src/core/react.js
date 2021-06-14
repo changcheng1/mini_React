@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-13 11:11:48
+ * @LastEditTime: 2021-06-14 16:12:50
  */
 import {updateComponent} from './react-dom'
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -14,10 +14,13 @@ class Component{
     this.stateQueue = [];
     // 当是是否处于批量更新的模式
     this.isBatchingUpdate = false;
+    // setState支持回调函数
+    this.callBacksFn = []
   }
   // setState包含了刷新界面的操作，就是让真实的dom和最新的虚拟Dom保持一致
-  setState(state){
+  setState(state,callBackFn){
     this.stateQueue.push(state);
+    if(callBackFn)this.callBacksFn.push(callBackFn);
     if(!this.isBatchingUpdate){
       this.forceUpdate()
     }
@@ -37,6 +40,8 @@ class Component{
     this.stateQueue = [];
     // 更新组件
     updateComponent(this)
+    this.callBacksFn.forEach(fn=>fn())
+    this.callBacksFn = []
   }
 }
 // 创建元素

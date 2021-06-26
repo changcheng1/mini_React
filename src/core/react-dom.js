@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 18:50:17
+ * @LastEditTime: 2021-06-26 22:10:33
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -22,18 +22,18 @@ function render(element, container, componentInstance) {
   let isReactComponent = type.isReactComponent;
   // 如果是类组件
   if (isReactComponent) {
-    componentInstance = new type(props); //函数组件执行后会返回一个React元素
-    // 如果类组件有refs属性，则refs设置为组件的实例
     if (props.refs) {
-      console.log("props.refs", props.refs);
       props.refs.current = componentInstance;
     }
+    componentInstance = new type(props); //函数组件执行后会返回一个React元素
+    // 如果类组件有refs属性，则refs设置为组件的实例
     if (componentInstance.componentWillMount) {
       componentInstance.componentWillMount();
     }
     element = componentInstance.render();
     type = element.type; // 重新获得React元素的类型
     props = element.props; // 和属性对象
+    // 如果是函数组件
   } else if (typeof type === "function") {
     // 取出函数
     element = type(props); //函数组件执行后会返回一个React元素
@@ -45,7 +45,6 @@ function render(element, container, componentInstance) {
     //componentInstance通过JSX编译之后默认有个dom属性，就是return里面的元素
     // 如果当前渲染的是一个类组件，我们就让这个类组件实例的dom属性指向这个类组件创建出来的真实dom
     // 这里的dom就是createElement返回的dom
-    console.log("componentInstance", componentInstance);
     componentInstance.dom = dom;
   }
   container.appendChild(dom);
@@ -122,17 +121,20 @@ function createElement(type, props, componentInstance) {
       dom.setAttribute(propName, props[propName]);
     }
   }
-  // 如果Dom上有refs属性的话
+  // 如果Dom上有ref属性的话
   // 不能在函数组件中使用ref属性，因为他们没有实例，执行完了就销毁
-  // 如何给函数组件增加Ref forWardRef转发Ref，ref转发是一项将ref自动通过组件传递到子组件的技巧，refs转发允许某些函数组件接受ref
-  // refs的三种写法 1.字符串 2.函数 3.createRef适用于函数组件
+  // 如何给函数组件增加Ref forWardRef转发Ref，ref转发是一项将ref自动通过组件传递到子组件的技巧，refs转发允许某些组件接受ref
+  // ref的三种写法 1.字符串 2.函数 3.createRef适用于函数组件
   // 1,2只支持类组件，3既支持函数组件也支持类组件
   if (props.refs) {
     if (typeof props.refs === "string") {
+      // <input refs="inputRef"/>
       componentInstance.refs[props.refs] = dom;
     } else if (typeof props.refs === "function") {
+      // 函数refs: <input refs={e=>this.inputRef = e}>
       props.refs.call(componentInstance, dom);
     } else if (typeof props.refs === "object") {
+      // 常用的：<input refs={this.a}/>
       props.refs.current = dom;
     }
   }

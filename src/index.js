@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 18:28:55
+ * @LastEditTime: 2021-06-26 21:57:50
  */
 import React from "./core/react"; //核心库
 import ReactDOM from "./core/react-dom"; //Dom渲染库
@@ -46,28 +46,36 @@ import ReactDOM from "./core/react-dom"; //Dom渲染库
 //  }
 // }
 // let element2 = React.createElement(Welcome1,{})
+
 class InputComponent extends React.Component {
   render() {
     return <div>123</div>;
   }
 }
+const InputFn = React.forWardRef(function (props, ref) {
+  return <input ref={ref} value={props.value} />;
+});
 class Counter extends React.Component {
   constructor() {
     super();
     this.state = { number: 0 };
     this.a = React.createRef();
     this.b = React.createRef();
+    this.c = React.createRef();
   }
   add = () => {
     console.log("this.a", this.a);
     console.log("this.b", this.b);
+    console.log("this.c", this.c);
   };
   render() {
     return (
       <div>
         <InputComponent refs={this.a} />
-        <input refs={this.b} />
-        <button onClick={this.add}>点击我</button>
+        <InputFn refs={this.b} value={1} />
+        <button onClick={this.add} refs={this.c}>
+          点击我
+        </button>
       </div>
     );
   }

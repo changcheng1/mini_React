@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 17:54:56
+ * @LastEditTime: 2021-06-26 21:58:23
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -63,6 +63,15 @@ function createElement(type, config, ...children) {
     props,
   };
 }
-
+// forWardRef 代理转发
+function forWardRef(functionComponent) {
+  // 实际上是返回一个类组件，类组件传入props和ref，然后执行函数组件，返回类组件
+  return class extends Component {
+    render() {
+      // 这里的this指向生成的forWardRef
+      return functionComponent(this.props, this.props.refs);
+    }
+  };
+}
 // eslint-disable-next-line import/no-anonymous-default-export
-export default { createElement, Component, createRef };
+export default { createElement, Component, createRef, forWardRef };

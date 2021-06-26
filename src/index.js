@@ -1,9 +1,9 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-14 20:25:16
+ * @LastEditTime: 2021-06-26 18:28:55
  */
-import React from './core/react';  //核心库
-import ReactDOM from './core/react-dom'; //Dom渲染库
+import React from "./core/react"; //核心库
+import ReactDOM from "./core/react-dom"; //Dom渲染库
 // babel会把jsx语法解析为dom进行渲染，jsx实际上更像js语法
 
 // 什么叫React元素
@@ -46,30 +46,31 @@ import ReactDOM from './core/react-dom'; //Dom渲染库
 //  }
 // }
 // let element2 = React.createElement(Welcome1,{})
-
-class Counter extends React.Component{
- constructor(){
-   super()
-   this.state = {number:0}
-   this.a = React.createRef()
-   this.b = React.createRef()
- }
- add = ()=>{
-   console.log(this.a.current.value)
-   console.log(this.b.current.value)
- }
- render(){
-   return (
-     <div>
-         <input refs={this.a}/><button onClick={this.add}>点击我</button>
-         <input refs={this.b}/><button onClick={this.add}>点击我</button>
-     </div>
-     
-   )
- }
+class InputComponent extends React.Component {
+  render() {
+    return <div>123</div>;
+  }
+}
+class Counter extends React.Component {
+  constructor() {
+    super();
+    this.state = { number: 0 };
+    this.a = React.createRef();
+    this.b = React.createRef();
+  }
+  add = () => {
+    console.log("this.a", this.a);
+    console.log("this.b", this.b);
+  };
+  render() {
+    return (
+      <div>
+        <InputComponent refs={this.a} />
+        <input refs={this.b} />
+        <button onClick={this.add}>点击我</button>
+      </div>
+    );
+  }
 }
 // 核心渲染方法
-ReactDOM.render(
- <Counter/>,
-  document.getElementById('root')
-);
+ReactDOM.render(<Counter />, document.getElementById("root"));

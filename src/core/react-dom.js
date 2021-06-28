@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 22:10:33
+ * @LastEditTime: 2021-06-27 17:12:43
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -22,17 +22,21 @@ function render(element, container, componentInstance) {
   let isReactComponent = type.isReactComponent;
   // 如果是类组件
   if (isReactComponent) {
+    // 设置类组件的refs属性
     if (props.refs) {
       props.refs.current = componentInstance;
     }
-    componentInstance = new type(props); //函数组件执行后会返回一个React元素
+    //函数组件执行后会返回一个React元素，也就是组价的实例
+    componentInstance = new type(props);
     // 如果类组件有refs属性，则refs设置为组件的实例
     if (componentInstance.componentWillMount) {
       componentInstance.componentWillMount();
     }
     element = componentInstance.render();
-    type = element.type; // 重新获得React元素的类型
-    props = element.props; // 和属性对象
+    // 重新获得React元素的类型
+    type = element.type;
+    // 和属性对象
+    props = element.props;
     // 如果是函数组件
   } else if (typeof type === "function") {
     // 取出函数
@@ -60,12 +64,20 @@ function render(element, container, componentInstance) {
 // 在事件处理函数执行前要把批量更新模式设为true
 // 这样的话在函数执行过程中会不会直接更新视图和状态了，只会缓存新的状态在updateQueue里
 // 等事件处理函数结束后才会进行实际更新
+/**
+ * @param {*} dom
+ * @param {*} eventType:事件类型
+ * @param {*} listener:事件函数
+ * @param {*} componentInstance:组件实例
+ * @return {*} null
+ */
 function addEvent(dom, eventType, listener, componentInstance) {
   // 将onClick => onclick
   eventType = eventType.toLocaleLowerCase();
-  // 添加 {}，用于存储点击事件和类组件实例，用来更改批量更新标识
+  // 添加 {}，用于存储点击事件和类组件实例，用来更改批量更新标识，存储在eventStore中
   let eventStore = dom.eventStore || (dom.eventStore = {});
   eventStore[eventType] = { listener, componentInstance };
+  // 在document添加事件代理
   document.addEventListener(eventType.slice(2), dispatchEvent, false);
 }
 // 实现浏览器的冒泡方法
@@ -77,7 +89,7 @@ function dispatchEvent(event) {
     if (eventStore) {
       const { listener, componentInstance } = eventStore[`on${event.type}`];
       if (listener) {
-        // 不触发视图更新
+        // 设置为true，不触发视图更新
         componentInstance.isBatchingUpdate = true;
         // 触发函数，比如点击事件之类的
         listener.call(componentInstance, event);
@@ -112,6 +124,7 @@ function createElement(type, props, componentInstance) {
       for (let key in props[propName]) {
         dom.style[key] = props[propName][key];
       }
+      // 如果当前有on开头，代表有事件绑定
     } else if (propName.startsWith("on")) {
       // dom[propName.toLocaleLowerCase()] = props[propName]
       // dom == 点击节点 propName == 点击时间名称 props[propName] == 点击事件函数 componentInstance == 类组件
@@ -128,10 +141,10 @@ function createElement(type, props, componentInstance) {
   // 1,2只支持类组件，3既支持函数组件也支持类组件
   if (props.refs) {
     if (typeof props.refs === "string") {
-      // <input refs="inputRef"/>
+      // <input refs="inputRef"/>  const {inputRef} = this.refs
       componentInstance.refs[props.refs] = dom;
     } else if (typeof props.refs === "function") {
-      // 函数refs: <input refs={e=>this.inputRef = e}>
+      // 函数refs: <input refs={input=>this.inputRef = input}>
       props.refs.call(componentInstance, dom);
     } else if (typeof props.refs === "object") {
       // 常用的：<input refs={this.a}/>

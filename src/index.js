@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 21:57:50
+ * @LastEditTime: 2021-06-27 17:14:37
  */
 import React from "./core/react"; //核心库
 import ReactDOM from "./core/react-dom"; //Dom渲染库
@@ -59,20 +59,11 @@ class Counter extends React.Component {
   constructor() {
     super();
     this.state = { number: 0 };
-    this.a = React.createRef();
-    this.b = React.createRef();
-    this.c = React.createRef();
   }
-  add = () => {
-    console.log("this.a", this.a);
-    console.log("this.b", this.b);
-    console.log("this.c", this.c);
-  };
   render() {
     return (
       <div>
-        <InputComponent refs={this.a} />
-        <InputFn refs={this.b} value={1} />
+        <div refs={"input"} />
         <button onClick={this.add} refs={this.c}>
           点击我
         </button>

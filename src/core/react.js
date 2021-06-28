@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-26 21:58:23
+ * @LastEditTime: 2021-06-27 11:44:08
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -20,6 +20,10 @@ class Component {
     this.refs = {};
   }
   // setState包含了刷新界面的操作，就是让真实的dom和最新的虚拟Dom保持一致
+  // setState三种更新方式
+  // 1.this.setState({number:1})
+  // 2.this.setState({ number: this.state.number + 1 }, () => console.log(this.state.number)});
+  // 3.this.setState(prevState=>({number:pervState.number+1}),()=>{console.log(this.state.number)})
   setState(state, callBackFn) {
     this.stateQueue.push(state);
     if (callBackFn) this.callBacksFn.push(callBackFn);
@@ -32,7 +36,7 @@ class Component {
     // 如果没有setState则试图不需要更新，例如通过refs直接修改demo，所以类组件中只有通过setState触发视图更新
     if (this.stateQueue.length === 0) return;
     this.state = this.stateQueue.reduce((prevState, current) => {
-      // 因为setState可能会包含函数，所以进行区分
+      // 因为setState第一个可能是函数，所以进行区分
       let mergeData =
         typeof current === "function" ? current(prevState) : current;
       // state合并

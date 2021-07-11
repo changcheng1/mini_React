@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-27 17:12:43
+ * @LastEditTime: 2021-07-11 14:08:29
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -28,11 +28,15 @@ function render(element, container, componentInstance) {
     }
     //函数组件执行后会返回一个React元素，也就是组价的实例
     componentInstance = new type(props);
-    // 如果类组件有refs属性，则refs设置为组件的实例
+    // 组件将要挂载
     if (componentInstance.componentWillMount) {
       componentInstance.componentWillMount();
     }
     element = componentInstance.render();
+    // 组件挂载完成
+    if (componentInstance.componentDidMount) {
+      componentInstance.componentDidMount();
+    }
     // 重新获得React元素的类型
     type = element.type;
     // 和属性对象
@@ -52,6 +56,7 @@ function render(element, container, componentInstance) {
     componentInstance.dom = dom;
   }
   container.appendChild(dom);
+  // 组件卸载
   if (
     isReactComponent &&
     componentInstance &&

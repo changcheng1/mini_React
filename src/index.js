@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-27 17:14:37
+ * @LastEditTime: 2021-07-11 13:58:51
  */
 import React from "./core/react"; //核心库
 import ReactDOM from "./core/react-dom"; //Dom渲染库
@@ -47,24 +47,37 @@ import ReactDOM from "./core/react-dom"; //Dom渲染库
 // }
 // let element2 = React.createElement(Welcome1,{})
 
-class InputComponent extends React.Component {
-  render() {
-    return <div>123</div>;
-  }
-}
-const InputFn = React.forWardRef(function (props, ref) {
-  return <input ref={ref} value={props.value} />;
-});
 class Counter extends React.Component {
   constructor() {
     super();
     this.state = { number: 0 };
+    console.log('constructor 初始化state和props')
+  }
+  componentWillMount(){
+    console.log('componentWillMount 组件将要挂载')
+  }
+  componentWillUpdate(){
+    console.log('componentWillUpdate 组件将要更新')
+  }
+  componentDidMount(){
+    console.log('componentDidMount 组件挂载完成')
+  }
+  componentDidUpdate(){
+    console.log('componentDidUpdate 组件更新完成')
+  }
+  shouldComponentUpdate(nextProps,nextState){
+    console.log('shouldComponentUpdate 组件是否要更新')
+    return nextState.number % 2 ===0
+  }
+  add = ()=>{
+    this.setState({number:this.state.number+1})
   }
   render() {
+    console.log('render 组件渲染')
     return (
       <div>
-        <div refs={"input"} />
-        <button onClick={this.add} refs={this.c}>
+        {this.state.number}
+        <button onClick={this.add}>
           点击我
         </button>
       </div>

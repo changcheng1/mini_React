@@ -1,13 +1,21 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-06-27 11:44:08
+ * @LastEditTime: 2021-07-11 14:05:25
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
+// 组件的生命周期
+// 1. constructor state和props初始化
+// 2. componentWillMount 组件将要挂载
+// 3. render 组件渲染
+// 4. componentDidMount 组件挂载完成
+// 5. shouldComponentUpdate 询问组件是否要更新
+// 6. componentWillUpdate 组件将要更新
+// 7. render 组件渲染
+// 8. componentDidUpdate 组件将要更新完成
 class Component {
   // 因为函数组件和类组件都是函数组件，所以加字段用来区分
   static isReactComponent = true;
-
   constructor(props) {
     this.props = props;
     // 更新队列
@@ -47,10 +55,18 @@ class Component {
     }, this.state);
     // 清空队列
     this.stateQueue = [];
-    // 更新组件
-    updateComponent(this);
     this.callBacksFn.forEach((fn) => fn());
     this.callBacksFn = [];
+    // 判断是否要更新组件
+    if(this.shouldComponentUpdate && !this.shouldComponentUpdate(this.props,this.state)){
+      return 
+    }
+    // 组件将要更新
+    if(this.componentWillUpdate) this.componentWillUpdate();
+    // 更新组件
+    updateComponent(this);
+    // 组件更新完成
+    if(this.componentDidUpdate) this.componentDidUpdate();
   }
 }
 // ref函数

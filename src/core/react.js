@@ -1,10 +1,11 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-07-11 14:05:25
+ * @LastEditTime: 2021-07-11 15:03:56
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
-// 组件的生命周期
+
+// 旧版的组件的生命周期
 // 1. constructor state和props初始化
 // 2. componentWillMount 组件将要挂载
 // 3. render 组件渲染
@@ -13,6 +14,7 @@ import { updateComponent } from "./react-dom";
 // 6. componentWillUpdate 组件将要更新
 // 7. render 组件渲染
 // 8. componentDidUpdate 组件将要更新完成
+
 class Component {
   // 因为函数组件和类组件都是函数组件，所以加字段用来区分
   static isReactComponent = true;

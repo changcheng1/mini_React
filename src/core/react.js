@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-07-11 15:03:56
+ * @LastEditTime: 2021-08-09 18:28:45
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -15,6 +15,10 @@ import { updateComponent } from "./react-dom";
 // 7. render 组件渲染
 // 8. componentDidUpdate 组件将要更新完成
 
+// 新版的生命周期去除了 componentWillMount componetWillUpdate componentWillReceiveProps
+// 新增加了 getDerivedStateFromProps和getSnapShotBeforeUpdate
+// getDerivedStateFromProps(nextProps,prevState):将传入的props映射到state nextProps:新属性对象 prevState:老的状态对象
+// getSnapshotBeforeUpdate():获取组件更新前的dom，此函数返回的值将传给componentDidUpdate(prevProps,prevState,snopResult)
 class Component {
   // 因为函数组件和类组件都是函数组件，所以加字段用来区分
   static isReactComponent = true;
@@ -60,15 +64,18 @@ class Component {
     this.callBacksFn.forEach((fn) => fn());
     this.callBacksFn = [];
     // 判断是否要更新组件
-    if(this.shouldComponentUpdate && !this.shouldComponentUpdate(this.props,this.state)){
-      return 
+    if (
+      this.shouldComponentUpdate &&
+      !this.shouldComponentUpdate(this.props, this.state)
+    ) {
+      return;
     }
     // 组件将要更新
-    if(this.componentWillUpdate) this.componentWillUpdate();
+    if (this.componentWillUpdate) this.componentWillUpdate();
     // 更新组件
     updateComponent(this);
     // 组件更新完成
-    if(this.componentDidUpdate) this.componentDidUpdate();
+    if (this.componentDidUpdate) this.componentDidUpdate();
   }
 }
 // ref函数

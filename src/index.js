@@ -1,11 +1,11 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-07-11 13:58:51
+ * @LastEditTime: 2021-08-10 15:13:06
  */
-import React from "./core/react"; //核心库
-import ReactDOM from "./core/react-dom"; //Dom渲染库
+import React from "react"; //核心库
+import ReactDOM from "react-dom"; //Dom渲染库
+import Context from './component/context'
 // babel会把jsx语法解析为dom进行渲染，jsx实际上更像js语法
-
 // 什么叫React元素
 // 是React应用的最小单位，它描述了屏幕看到的内容
 // React元素本质是一个普通的js对象
@@ -46,11 +46,60 @@ import ReactDOM from "./core/react-dom"; //Dom渲染库
 //  }
 // }
 // let element2 = React.createElement(Welcome1,{})
-
+class SubCounter extends React.Component{
+  constructor(props){
+    super(props)
+    this.container = React.createRef()
+    this.state = {
+      count:1,
+      messages:[]
+    }
+  }
+  componentDidMount(){
+    this.timer = setInterval(()=>{
+      this.setState({
+        messages:[`${this.state.messages.length}`,...this.state.messages]
+      })
+    },1000)
+  }
+  // 将props映射到state上
+  static getDerivedStateFromProps(nextProps,prevState){
+    const {count} = nextProps
+    return {
+      count:count*2
+    }
+  }
+  // 获取Dom快照 getSnapshotBeforeUpdate
+  getSnapshotBeforeUpdate(){
+    return this.container.current.scrollHeight
+  }
+  componentDidUpdate(prevPrpos,prevState,prevScrollHeight){
+    // 新的向上的高度
+    let nextScrollTop = this.container.current.scrollTop;
+    // 内容的高度
+    this.container.current.scrollTop = nextScrollTop+(this.container.current.scrollHeight-prevScrollHeight)
+  }
+  render(){
+    let styleObj = {
+      width:'100px',
+      height:'100px',
+      border:'1px solid red',
+      overflowY:'scroll'
+    }
+  return <div ref={this.container} style={styleObj}>
+    {/* {this.state.count} */}
+      {
+        this.state.messages.map((item,index)=>
+        <div key={index}>{item}</div>  
+        )
+      }
+  </div>
+  }
+}
 class Counter extends React.Component {
   constructor() {
     super();
-    this.state = { number: 0 };
+    this.state = { number: 1 };
     console.log('constructor 初始化state和props')
   }
   componentWillMount(){
@@ -67,7 +116,7 @@ class Counter extends React.Component {
   }
   shouldComponentUpdate(nextProps,nextState){
     console.log('shouldComponentUpdate 组件是否要更新')
-    return nextState.number % 2 ===0
+    return true
   }
   add = ()=>{
     this.setState({number:this.state.number+1})
@@ -77,9 +126,11 @@ class Counter extends React.Component {
     return (
       <div>
         {this.state.number}
+        <SubCounter count={this.state.number}/>
         <button onClick={this.add}>
           点击我
         </button>
+        <Context/>
       </div>
     );
   }

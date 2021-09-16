@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 14:50:09
+ * @LastEditTime: 2021-09-16 17:19:57
  */
 import React from "./core/react"; //核心库
 import ReactDOM from "./core/react-dom"; //Dom渲染库
@@ -11,6 +11,15 @@ import Context from './component/context'
 // React元素本质是一个普通的js对象
 // ReactDom会保证浏览器的Dom和React元素一致
 
+// function CreateElement(type, config = {}, ...children) {
+//   return {
+//     type,
+//     props: {
+//       ...config,
+//       children,
+//     },
+//   };
+// }
 // 创建元素
 // let element = React.createElement("div",{
 //   className:"title",
@@ -86,7 +95,7 @@ class SubCounter extends React.Component{
       border:'1px solid red',
       overflowY:'scroll'
     }
-  return <div ref={this.container} style={styleObj}>
+  return <div refs={this.container} style={styleObj}>
     {/* {this.state.count} */}
       {
         this.state.messages.map((item,index)=>
@@ -102,8 +111,8 @@ class Counter extends React.Component {
     this.state = { number: 1 };
     console.log('constructor 初始化state和props')
   }
-  componentWillMount(){
-    console.log('componentWillMount 组件将要挂载')
+  UNSAFE_componentWillMount(){
+    console.log('UNSAFE_componentWillMount 组件将要挂载')
   }
   componentWillUpdate(){
     console.log('componentWillUpdate 组件将要更新')
@@ -125,12 +134,12 @@ class Counter extends React.Component {
     console.log('render 组件渲染')
     return (
       <div>
-         {this.state.number}
+        {/* {this.state.number} */}
         {/* <SubCounter count={this.state.number}/> */}
-         <button onClick={this.add}>
+        {/* <button onClick={this.add}>
           点击我
-        </button> 
-        <Context/> 
+        </button> */}
+        <Context/>
       </div>
     );
   }

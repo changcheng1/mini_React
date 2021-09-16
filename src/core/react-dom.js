@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 14:52:43
+ * @LastEditTime: 2021-09-16 17:30:51
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -29,13 +29,17 @@ function render(element, container, componentInstance) {
     }
     //函数组件执行后会返回一个React元素，也就是组价的实例
     componentInstance = new type(props);
+    // 如果有静态属性contextType就设置context的值
+    if(type.contextType){
+      componentInstance.context = type.contextType.Provider.value
+    }
     // 组件将要挂载
-    if (componentInstance.componentWillMount) {
-      componentInstance.componentWillMount();
+    if (componentInstance.UNSAFE_componentWillMount) {
+      componentInstance.UNSAFE_componentWillMount();
     }
     element = componentInstance.render();
     // 因为组件可能嵌套，所以可能返回数组
-    element = Array.isArray(element) ? element[0] : element;
+     element = Array.isArray(element) ? element[0] : element;
     // 组件挂载完成
     if (componentInstance.componentDidMount) {
       componentInstance.componentDidMount();
@@ -53,12 +57,12 @@ function render(element, container, componentInstance) {
     type = element.type;
     props = element.props;
   }
-  //因为有组件嵌套的情况，所以返回的不一定是Dom，有可能是函数组件或者类组件
+  //因为有组件嵌套的情况，所以返回的不一定是Dom，有可能是函数
   if(typeof type === 'function'){
     return render(element,container,componentInstance)
   }
   let dom = createElement(type, props, componentInstance);
-  if (isReactComponent && componentInstance) {
+  if (componentInstance) {
     //componentInstance通过JSX编译之后默认有个dom属性，就是return里面的元素
     // 如果当前渲染的是一个类组件，我们就让这个类组件实例的dom属性指向这个类组件创建出来的真实dom
     // 这里的dom就是createElement返回的dom

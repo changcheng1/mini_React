@@ -1,21 +1,22 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 14:44:09
+ * @LastEditTime: 2021-09-16 17:36:23
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
 
 // 旧版的组件的生命周期
 // 1. constructor state和props初始化
-// 2. componentWillMount 组件将要挂载
+// 2. UNSAFE_componentWillMount 组件将要挂载
 // 3. render 组件渲染
 // 4. componentDidMount 组件挂载完成
 // 5. shouldComponentUpdate 询问组件是否要更新
-// 6. componentWillUpdate 组件将要更新
+// 6. UNSAFE_componentWillUpdate 组件将要更新
 // 7. render 组件渲染
 // 8. componentDidUpdate 组件将要更新完成
 
-// 新版的生命周期去除了 componentWillMount componetWillUpdate componentWillReceiveProps
+// 旧版的生命周期之所以被废除，因为如果在UNSAFE_componentWillUpdate之类的调用会引起死循环
+// 新版的生命周期去除了 UNSAFE_componentWillMount UNSAFE_componetWillUpdate UNSAFE_componentWillReceiveProps
 // 新增加了 getDerivedStateFromProps和getSnapShotBeforeUpdate
 // getDerivedStateFromProps(nextProps,prevState):将传入的props映射到state nextProps:新属性对象 prevState:老的状态对象
 // getSnapshotBeforeUpdate():获取组件更新前的dom，此函数返回的值将传给componentDidUpdate(prevProps,prevState,snopResult)
@@ -103,6 +104,7 @@ function createContext() {
     return props.children; //直接渲染儿子
   }
   function Consumer(props) {
+    // 因为可能会有多个组件的情况
     let children = Array.isArray(props.children) ? props.children[0] : props.children;
     // 执行函数方法，传递Props
     return children(Provider.value);
@@ -113,7 +115,10 @@ function createContext() {
     Consumer,
   };
 }
-// forWardRef 代理转发
+// forWardRef 代理转发，其实就是ref参数传递
+// const FocusInput = forwardRef((props, ref) => (
+//   <input type="text" ref={ref} />
+// ));
 function forWardRef(functionComponent) {
   // 实际上是返回一个类组件，类组件传入props和ref，然后执行函数组件，返回类组件
   return class extends Component {

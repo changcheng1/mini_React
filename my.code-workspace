@@ -1,11 +1,7 @@
 {
-  "folders": [
-    {
-      "path": "."
-    },
-    {
-      "path": "../../Downloads/book"
-    }
-  ],
-  "settings": {}
+    "folders": [
+        {
+            "path": "."
+        }
+    ]
 }

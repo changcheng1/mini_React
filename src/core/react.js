@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-08-09 18:28:45
+ * @LastEditTime: 2021-09-16 14:44:09
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -39,8 +39,11 @@ class Component {
   // 2.this.setState({ number: this.state.number + 1 }, () => console.log(this.state.number)});
   // 3.this.setState(prevState=>({number:pervState.number+1}),()=>{console.log(this.state.number)})
   setState(state, callBackFn) {
+    // state存入stateQueue
     this.stateQueue.push(state);
+    // 回调函数传入callBacksFn
     if (callBackFn) this.callBacksFn.push(callBackFn);
+    // 如果当前不是批量更新就暴力更新
     if (!this.isBatchingUpdate) {
       this.forceUpdate();
     }
@@ -92,6 +95,24 @@ function createElement(type, config, ...children) {
     props,
   };
 }
+// createContext方法
+function createContext() {
+  function Provider(props) {
+    // 共享value值
+    Provider.value = props.value;
+    return props.children; //直接渲染儿子
+  }
+  function Consumer(props) {
+    let children = Array.isArray(props.children) ? props.children[0] : props.children;
+    // 执行函数方法，传递Props
+    return children(Provider.value);
+  }
+  // 返回提供者和消费者
+  return {
+    Provider,
+    Consumer,
+  };
+}
 // forWardRef 代理转发
 function forWardRef(functionComponent) {
   // 实际上是返回一个类组件，类组件传入props和ref，然后执行函数组件，返回类组件
@@ -103,4 +124,10 @@ function forWardRef(functionComponent) {
   };
 }
 // eslint-disable-next-line import/no-anonymous-default-export
-export default { createElement, Component, createRef, forWardRef };
+export default {
+  createElement,
+  Component,
+  createRef,
+  forWardRef,
+  createContext,
+};

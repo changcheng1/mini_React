@@ -1,9 +1,9 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-08-10 15:13:06
+ * @LastEditTime: 2021-09-16 14:50:09
  */
-import React from "react"; //核心库
-import ReactDOM from "react-dom"; //Dom渲染库
+import React from "./core/react"; //核心库
+import ReactDOM from "./core/react-dom"; //Dom渲染库
 import Context from './component/context'
 // babel会把jsx语法解析为dom进行渲染，jsx实际上更像js语法
 // 什么叫React元素
@@ -125,12 +125,12 @@ class Counter extends React.Component {
     console.log('render 组件渲染')
     return (
       <div>
-        {this.state.number}
-        <SubCounter count={this.state.number}/>
-        <button onClick={this.add}>
+         {this.state.number}
+        {/* <SubCounter count={this.state.number}/> */}
+         <button onClick={this.add}>
           点击我
-        </button>
-        <Context/>
+        </button> 
+        <Context/> 
       </div>
     );
   }

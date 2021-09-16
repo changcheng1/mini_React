@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-07-11 14:08:29
+ * @LastEditTime: 2021-09-16 14:52:43
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
@@ -12,6 +12,7 @@ export function updateComponent(componentInstance) {
   componentInstance.dom = newDom;
 }
 function render(element, container, componentInstance) {
+   // 如果是数字或者是字符串直接append
   if (typeof element === "string" || typeof element === "number") {
     return container.appendChild(document.createTextNode(element));
   }
@@ -33,6 +34,8 @@ function render(element, container, componentInstance) {
       componentInstance.componentWillMount();
     }
     element = componentInstance.render();
+    // 因为组件可能嵌套，所以可能返回数组
+    element = Array.isArray(element) ? element[0] : element;
     // 组件挂载完成
     if (componentInstance.componentDidMount) {
       componentInstance.componentDidMount();
@@ -45,8 +48,14 @@ function render(element, container, componentInstance) {
   } else if (typeof type === "function") {
     // 取出函数
     element = type(props); //函数组件执行后会返回一个React元素
+    // 因为组件可能嵌套，所以可能返回数组
+    element = Array.isArray(element) ? element[0] : element;
     type = element.type;
     props = element.props;
+  }
+  //因为有组件嵌套的情况，所以返回的不一定是Dom，有可能是函数组件或者类组件
+  if(typeof type === 'function'){
+    return render(element,container,componentInstance)
   }
   let dom = createElement(type, props, componentInstance);
   if (isReactComponent && componentInstance) {
@@ -144,7 +153,7 @@ function createElement(type, props, componentInstance) {
   // 如何给函数组件增加Ref forWardRef转发Ref，ref转发是一项将ref自动通过组件传递到子组件的技巧，refs转发允许某些组件接受ref
   // ref的三种写法 1.字符串 2.函数 3.createRef适用于函数组件
   // 1,2只支持类组件，3既支持函数组件也支持类组件
-  if (props.refs) {
+  if (props && props.refs) {
     if (typeof props.refs === "string") {
       // <input refs="inputRef"/>  const {inputRef} = this.refs
       componentInstance.refs[props.refs] = dom;

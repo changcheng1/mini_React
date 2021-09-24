@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 17:36:23
+ * @LastEditTime: 2021-09-16 20:14:10
  */
 import { updateComponent } from "./react-dom";
 // 因为js没有类的改变，所以要区分是类组件还是函数组件
@@ -11,11 +11,11 @@ import { updateComponent } from "./react-dom";
 // 3. render 组件渲染
 // 4. componentDidMount 组件挂载完成
 // 5. shouldComponentUpdate 询问组件是否要更新
-// 6. UNSAFE_componentWillUpdate 组件将要更新
+// 6. UNSAFE_UNSAFE_componentWillUpdate 组件将要更新
 // 7. render 组件渲染
 // 8. componentDidUpdate 组件将要更新完成
 
-// 旧版的生命周期之所以被废除，因为如果在UNSAFE_componentWillUpdate之类的调用会引起死循环
+// 旧版的生命周期之所以被废除，因为如果在UNSAFE_UNSAFE_componentWillUpdate之类的调用会引起死循环
 // 新版的生命周期去除了 UNSAFE_componentWillMount UNSAFE_componetWillUpdate UNSAFE_componentWillReceiveProps
 // 新增加了 getDerivedStateFromProps和getSnapShotBeforeUpdate
 // getDerivedStateFromProps(nextProps,prevState):将传入的props映射到state nextProps:新属性对象 prevState:老的状态对象
@@ -75,7 +75,7 @@ class Component {
       return;
     }
     // 组件将要更新
-    if (this.componentWillUpdate) this.componentWillUpdate();
+    if (this.UNSAFE_componentWillUpdate) this.UNSAFE_componentWillUpdate();
     // 更新组件
     updateComponent(this);
     // 组件更新完成
@@ -104,10 +104,8 @@ function createContext() {
     return props.children; //直接渲染儿子
   }
   function Consumer(props) {
-    // 因为可能会有多个组件的情况
-    let children = Array.isArray(props.children) ? props.children[0] : props.children;
     // 执行函数方法，传递Props
-    return children(Provider.value);
+    return props.children(Provider.value);
   }
   // 返回提供者和消费者
   return {

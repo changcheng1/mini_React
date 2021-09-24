@@ -1,10 +1,11 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 17:19:57
+ * @LastEditTime: 2021-09-17 10:45:44
  */
-import React from "./core/react"; //核心库
-import ReactDOM from "./core/react-dom"; //Dom渲染库
+import React from "react"; //核心库
+import ReactDOM from "react-dom"; //Dom渲染库
 import Context from './component/context'
+import {NameComponent,AgeComponent} from './component/HightComponent'
 // babel会把jsx语法解析为dom进行渲染，jsx实际上更像js语法
 // 什么叫React元素
 // 是React应用的最小单位，它描述了屏幕看到的内容
@@ -114,8 +115,8 @@ class Counter extends React.Component {
   UNSAFE_componentWillMount(){
     console.log('UNSAFE_componentWillMount 组件将要挂载')
   }
-  componentWillUpdate(){
-    console.log('componentWillUpdate 组件将要更新')
+  UNSAFE_componentWillUpdate(){
+    console.log('UNSAFE_componentWillUpdate 组件将要更新')
   }
   componentDidMount(){
     console.log('componentDidMount 组件挂载完成')
@@ -139,7 +140,9 @@ class Counter extends React.Component {
         {/* <button onClick={this.add}>
           点击我
         </button> */}
-        <Context/>
+        {/* <Context/> */}
+        <NameComponent/>
+        <AgeComponent/>
       </div>
     );
   }

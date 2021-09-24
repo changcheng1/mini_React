@@ -1,24 +1,34 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-16 17:30:51
+ * @LastEditTime: 2021-09-24 14:23:39
+ */
+/**
+ *
+ * @param {*} componentInstance  组件实例
  */
 export function updateComponent(componentInstance) {
   // 根据新的属性和状态得到新的element元素
-  let element = componentInstance.render(); // 根据新的element得到新的dom元素
-  let { type, props } = element;
+  let vdom = componentInstance.render(); // 根据新的element得到新的dom元素
+  let { type, props } = vdom;
   let newDom = createElement(type, props, componentInstance); // 根据新的element得到新的dom元素
   // 新老节点替换，这里进行dom替换视图更新
   componentInstance.dom.parentNode.replaceChild(newDom, componentInstance.dom);
   componentInstance.dom = newDom;
 }
-function render(element, container, componentInstance) {
-   // 如果是数字或者是字符串直接append
-  if (typeof element === "string" || typeof element === "number") {
-    return container.appendChild(document.createTextNode(element));
+/**
+ *
+ * @param {*} vdom  虚拟dom
+ * @param {*} container  父节点
+ * @param {*} componentInstance  组件实例
+ */
+function render(vdom, container, componentInstance) {
+  // 如果是数字或者是字符串直接append
+  if (typeof vdom === "string" || typeof vdom === "number") {
+    return container.appendChild(document.createTextNode(vdom));
   }
   let type, props;
-  type = element.type;
-  props = element.props;
+  type = vdom.type;
+  props = vdom.props;
   // 判断是否是类组件
   let isReactComponent = type.isReactComponent;
   // 如果是类组件
@@ -30,37 +40,35 @@ function render(element, container, componentInstance) {
     //函数组件执行后会返回一个React元素，也就是组价的实例
     componentInstance = new type(props);
     // 如果有静态属性contextType就设置context的值
-    if(type.contextType){
-      componentInstance.context = type.contextType.Provider.value
+    if (type.contextType) {
+      componentInstance.context = type.contextType.Provider.value;
     }
     // 组件将要挂载
     if (componentInstance.UNSAFE_componentWillMount) {
       componentInstance.UNSAFE_componentWillMount();
     }
-    element = componentInstance.render();
+    vdom = componentInstance.render();
     // 因为组件可能嵌套，所以可能返回数组
-     element = Array.isArray(element) ? element[0] : element;
     // 组件挂载完成
     if (componentInstance.componentDidMount) {
       componentInstance.componentDidMount();
     }
     // 重新获得React元素的类型
-    type = element.type;
+    type = vdom.type;
     // 和属性对象
-    props = element.props;
+    props = vdom.props;
     // 如果是函数组件
   } else if (typeof type === "function") {
     // 取出函数
-    element = type(props); //函数组件执行后会返回一个React元素
-    // 因为组件可能嵌套，所以可能返回数组
-    element = Array.isArray(element) ? element[0] : element;
-    type = element.type;
-    props = element.props;
+    vdom = type(props); //函数组件执行后会返回一个React元素
+    type = vdom.type;
+    props = vdom.props;
   }
   //因为有组件嵌套的情况，所以返回的不一定是Dom，有可能是函数
-  if(typeof type === 'function'){
-    return render(element,container,componentInstance)
+  if (typeof type === "function") {
+    return render(vdom, container, componentInstance);
   }
+  // 创建真实dom
   let dom = createElement(type, props, componentInstance);
   if (componentInstance) {
     //componentInstance通过JSX编译之后默认有个dom属性，就是return里面的元素

@@ -1,9 +1,9 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2021-09-16 17:49:31
+ * @LastEditTime: 2021-09-16 17:58:23
 -->
 # React
 
-1.React jsx语法经过Babel解析，入口为React.createElement
+React jsx语法基于Babel解析
 
 ![avatar](./img/1.png)

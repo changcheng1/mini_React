@@ -1,183 +1,127 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-09-24 14:23:39
+ * @LastEditTime: 2021-11-01 17:47:50
  */
+import { addEvent } from "./event";
+// 1.把Vdom虚拟dom变成真实Dom
+// 2.把虚拟Dom上的属性更新或者同步到Dom上
+// 3.把此虚拟Dom的儿子变成真实的Dom挂载到自己的dom上，dom.appendChild
+// 4.把自己挂载到容器上
 /**
  *
- * @param {*} componentInstance  组件实例
+ * @param {*} vdom  虚拟Dom
+ * @param {*} container 要把虚拟Dom转成真实dom并插入到那个容器里面去
  */
-export function updateComponent(componentInstance) {
-  // 根据新的属性和状态得到新的element元素
-  let vdom = componentInstance.render(); // 根据新的element得到新的dom元素
-  let { type, props } = vdom;
-  let newDom = createElement(type, props, componentInstance); // 根据新的element得到新的dom元素
-  // 新老节点替换，这里进行dom替换视图更新
-  componentInstance.dom.parentNode.replaceChild(newDom, componentInstance.dom);
-  componentInstance.dom = newDom;
-}
-/**
- *
- * @param {*} vdom  虚拟dom
- * @param {*} container  父节点
- * @param {*} componentInstance  组件实例
- */
-function render(vdom, container, componentInstance) {
-  // 如果是数字或者是字符串直接append
-  if (typeof vdom === "string" || typeof vdom === "number") {
-    return container.appendChild(document.createTextNode(vdom));
-  }
-  let type, props;
-  type = vdom.type;
-  props = vdom.props;
-  // 判断是否是类组件
-  let isReactComponent = type.isReactComponent;
-  // 如果是类组件
-  if (isReactComponent) {
-    // 设置类组件的refs属性
-    if (props.refs) {
-      props.refs.current = componentInstance;
-    }
-    //函数组件执行后会返回一个React元素，也就是组价的实例
-    componentInstance = new type(props);
-    // 如果有静态属性contextType就设置context的值
-    if (type.contextType) {
-      componentInstance.context = type.contextType.Provider.value;
-    }
-    // 组件将要挂载
-    if (componentInstance.UNSAFE_componentWillMount) {
-      componentInstance.UNSAFE_componentWillMount();
-    }
-    vdom = componentInstance.render();
-    // 因为组件可能嵌套，所以可能返回数组
-    // 组件挂载完成
-    if (componentInstance.componentDidMount) {
-      componentInstance.componentDidMount();
-    }
-    // 重新获得React元素的类型
-    type = vdom.type;
-    // 和属性对象
-    props = vdom.props;
-    // 如果是函数组件
-  } else if (typeof type === "function") {
-    // 取出函数
-    vdom = type(props); //函数组件执行后会返回一个React元素
-    type = vdom.type;
-    props = vdom.props;
-  }
-  //因为有组件嵌套的情况，所以返回的不一定是Dom，有可能是函数
-  if (typeof type === "function") {
-    return render(vdom, container, componentInstance);
-  }
-  // 创建真实dom
-  let dom = createElement(type, props, componentInstance);
-  if (componentInstance) {
-    //componentInstance通过JSX编译之后默认有个dom属性，就是return里面的元素
-    // 如果当前渲染的是一个类组件，我们就让这个类组件实例的dom属性指向这个类组件创建出来的真实dom
-    // 这里的dom就是createElement返回的dom
-    componentInstance.dom = dom;
-  }
+function render(vdom, container) {
+  let dom = createDom(vdom);
   container.appendChild(dom);
-  // 组件卸载
-  if (
-    isReactComponent &&
-    componentInstance &&
-    componentInstance.componentWillUnmount
-  ) {
-    componentInstance.componentWillUnmount();
-  }
 }
-// 合成事件
-// 在事件处理函数执行前要把批量更新模式设为true
-// 这样的话在函数执行过程中会不会直接更新视图和状态了，只会缓存新的状态在updateQueue里
-// 等事件处理函数结束后才会进行实际更新
 /**
- * @param {*} dom
- * @param {*} eventType:事件类型
- * @param {*} listener:事件函数
- * @param {*} componentInstance:组件实例
- * @return {*} null
+ * 根据虚拟dom创建真实Dom
+ * @param {*} vdom 虚拟Dom
  */
-function addEvent(dom, eventType, listener, componentInstance) {
-  // 将onClick => onclick
-  eventType = eventType.toLocaleLowerCase();
-  // 添加 {}，用于存储点击事件和类组件实例，用来更改批量更新标识，存储在eventStore中
-  let eventStore = dom.eventStore || (dom.eventStore = {});
-  eventStore[eventType] = { listener, componentInstance };
-  // 在document添加事件代理
-  document.addEventListener(eventType.slice(2), dispatchEvent, false);
-}
-// 实现浏览器的冒泡方法
-function dispatchEvent(event) {
-  let { target } = event;
-  while (target) {
-    // 一直冒泡往上遍历触发点击事件，模拟浏览器的冒泡
-    const { eventStore } = target;
-    if (eventStore) {
-      const { listener, componentInstance } = eventStore[`on${event.type}`];
-      if (listener) {
-        // 设置为true，不触发视图更新
-        componentInstance.isBatchingUpdate = true;
-        // 触发函数，比如点击事件之类的
-        listener.call(componentInstance, event);
-        // 改变状态，清空事件队列
-        componentInstance.isBatchingUpdate = false;
-        // 强制更新视图
-        componentInstance.forceUpdate();
-      }
-    }
-    target = target.parentNode;
+export function createDom(vdom) {
+  // 如果是字符串或者数字类型，返回真实文本节点
+  if (typeof vdom === "string" || typeof vdom === "number") {
+    return document.createTextNode(vdom);
   }
-}
-// 抽离创建元素的方法
-function createElement(type, props, componentInstance) {
-  // 创建Dom
-  let dom = document.createElement(type);
-  for (let propName in props) {
-    if (propName === "children") {
-      // 如果接下来有多个children，进行递归，传入当前的元素，和他的父元素
-      if (Array.isArray(props.children)) {
-        props.children.forEach((children) =>
-          render(children, dom, componentInstance)
-        );
-      } else {
-        render(props.children, dom, componentInstance);
-      }
-    } else if (propName === "className") {
-      // 设置className
-      dom.className = props[propName];
-    } else if (propName === "style") {
-      // 设置style，因为js的属性名就是驼峰所以不需要转
-      for (let key in props[propName]) {
-        dom.style[key] = props[propName][key];
-      }
-      // 如果当前有on开头，代表有事件绑定
-    } else if (propName.startsWith("on")) {
-      // dom[propName.toLocaleLowerCase()] = props[propName]
-      // dom == 点击节点 propName == 点击时间名称 props[propName] == 点击事件函数 componentInstance == 类组件
-      addEvent(dom, propName, props[propName], componentInstance);
+  // 否则就是一个虚拟Dom对象，也就是一个React元素
+  let { type, props } = vdom;
+  let dom;
+  // dom可能是函数组件
+  if (typeof type === "function") {
+    if (type.isReactComponent) {
+      return mountClassComponent(vdom);
     } else {
-      // 设置属性
-      dom.setAttribute(propName, props[propName]);
+      return mountFunctionComponent(vdom);
+    }
+  } else {
+    dom = document.createElement(type);
+  }
+  // 使用虚拟Dom的属性更新刚创建出来的真实Dom的属性
+  updateProps(dom, props);
+  // 如果children是字符串或者数字
+  if (
+    typeof props.children === "string" ||
+    typeof props.children === "number"
+  ) {
+    dom.textContent = props.children;
+  } else if (typeof props.children === "object" && props.children.type) {
+    // 当前的元素和当前元素的父级传入
+    render(props.children, dom);
+    // 如果是个数组，说明儿子不止一个
+  } else if (Array.isArray(props.children)) {
+    // reconcileChildren:使和谐一致
+    reconcileChildren(props.children, dom);
+  } else {
+    document.textContent = props.children ? props.children.toString() : "";
+  }
+  // 把真实Dom作为一个属性放在虚拟Dom上，为以后更新做准备
+  // vdom.dom = dom;
+  return dom;
+}
+/**
+ * 使用虚拟Dom属性更新刚创建出来的真实Dom属性
+ * @param {*} dom 真实Dom
+ * @param {*} newProps 新属性对象
+ */
+function updateProps(dom, newProps) {
+  for (let key in newProps) {
+    if (key === "children") continue;
+    if (key === "style") {
+      for (let attr in newProps[key]) {
+        dom.style[attr] = newProps[key][attr];
+      }
+      // 处理onClick,onChange之类的事件处理函数
+    } else if (key.startsWith("on")) {
+      const evenType = key.toLocaleLowerCase();
+      dom[evenType] = newProps[key];
+      addEvent(dom, evenType, newProps[key]);
+    } else if (key === "className") {
+      dom.className = newProps[key];
     }
   }
-  // 如果Dom上有ref属性的话
-  // 不能在函数组件中使用ref属性，因为他们没有实例，执行完了就销毁
-  // 如何给函数组件增加Ref forWardRef转发Ref，ref转发是一项将ref自动通过组件传递到子组件的技巧，refs转发允许某些组件接受ref
-  // ref的三种写法 1.字符串 2.函数 3.createRef适用于函数组件
-  // 1,2只支持类组件，3既支持函数组件也支持类组件
-  if (props && props.refs) {
-    if (typeof props.refs === "string") {
-      // <input refs="inputRef"/>  const {inputRef} = this.refs
-      componentInstance.refs[props.refs] = dom;
-    } else if (typeof props.refs === "function") {
-      // 函数refs: <input refs={input=>this.inputRef = input}>
-      props.refs.call(componentInstance, dom);
-    } else if (typeof props.refs === "object") {
-      // 常用的：<input refs={this.a}/>
-      props.refs.current = dom;
-    }
+}
+/**
+ *
+ * @param {*} childrenVdom  儿子们的虚拟Dom
+ * @param {*} parentDom 父亲的真实Dom
+ */
+function reconcileChildren(childrenVdom, parentDom) {
+  for (let i = 0; i < childrenVdom.length; i++) {
+    let childDom = childrenVdom[i];
+    render(childDom, parentDom);
   }
+}
+/**
+ * 把一个函数组件虚拟Dom转换成真实Dom
+ * @param {*} vdom 虚拟Dom
+ */
+function mountFunctionComponent(vdom) {
+  // 使用对象别名，执行函数，传入pros，拿到函数执行返回的值
+  let { type: functionComponent, props } = vdom;
+  // 执行函数组件获取虚拟Dom
+  let renderDom = functionComponent(props);
+  // 获取函数组件真实的dom
+  return createDom(renderDom);
+}
+/**
+ * 把一个类组件转换成真实Dom
+ * 创建类组件实例，调用render方法，将虚拟Dom转换成真实Dom
+ * @param {*} vdom
+ */
+function mountClassComponent(vdom) {
+  // 结构类的定义和类的属性对象
+  let { type, props } = vdom;
+  // 创建类的实例
+  const classInstance = new type(props);
+  // 调用render方法，获取组件的虚拟dom对象
+  let renderVdom = classInstance.render();
+  // 渲染真实的dom
+  let dom = createDom(renderVdom);
+  // 为了类组件更新，把真实的dom挂载在类的实例上
+  classInstance.dom = dom;
   return dom;
 }
 // eslint-disable-next-line import/no-anonymous-default-export
-export default { render };
+export { render };

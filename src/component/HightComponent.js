@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2021-09-17 10:42:18
+ * @LastEditTime: 2021-09-30 17:44:40
  */
 import React from 'react'
 // 高阶组件：传入一个组件，返回一个组件
@@ -18,7 +18,7 @@ const Age = (props)=>{
 const FormLocalStorage = (PropsComponent,name)=>{
     return class extends React.Component{
         state = {value:''}
-        UNSAFE_componentWillMount(){
+        UNSAFE_componentWillMount(){ 
             let value = localStorage.getItem(name)
             this.setState({value})
         }

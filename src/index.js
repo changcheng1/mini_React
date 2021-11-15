@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-11-01 15:47:47
+ * @LastEditTime: 2021-11-15 18:59:30
  */
 import { render } from "./core/react-dom"; //核心库
 import { Component } from "./core/react";
@@ -13,23 +13,17 @@ class FunctionClass extends Component {
     };
   }
   setCount = () => {
-    console.log(this.state.count);
     this.setState({ count: this.state.count + 1 });
-    console.log(this.state.count);
     this.setState({ count: this.state.count + 1 });
-    console.log(this.state.count);
   };
   render() {
     return (
-      <div>
-        <button
-          onClick={() => {
-            this.setCount();
-          }}
-        >
-          触发setState
-        </button>
-        <div>{this.state.count}</div>
+      <div
+        onClick={() => {
+          this.setCount();
+        }}
+      >
+        {this.state.count}
       </div>
     );
   }

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2021-11-01 17:30:00
+ * @LastEditTime: 2021-11-05 10:21:21
 -->
 
 ### React jsx 语法基于 Babel 解析
@@ -91,3 +91,13 @@
     })
 
 ```
+
+### react 生命周期
+
+<br/>
+
+![avatar](./img/lifeCycle.png)
+
+### domDiff
+
+![avatar](./img/domDiff.jpeg)

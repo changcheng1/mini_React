@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-11-01 17:47:50
+ * @LastEditTime: 2021-11-15 21:47:11
  */
 import { addEvent } from "./event";
 // 1.把Vdom虚拟dom变成真实Dom
@@ -8,13 +8,15 @@ import { addEvent } from "./event";
 // 3.把此虚拟Dom的儿子变成真实的Dom挂载到自己的dom上，dom.appendChild
 // 4.把自己挂载到容器上
 /**
- *
+ * render方法才是真的挂载
  * @param {*} vdom  虚拟Dom
  * @param {*} container 要把虚拟Dom转成真实dom并插入到那个容器里面去
  */
 function render(vdom, container) {
   let dom = createDom(vdom);
   container.appendChild(dom);
+  // 执行挂载完成函数，因为在挂载组件的时候添加了此属性
+  dom.componentDidMount && dom.componentDidMount();
 }
 /**
  * 根据虚拟dom创建真实Dom
@@ -56,7 +58,6 @@ export function createDom(vdom) {
   } else {
     document.textContent = props.children ? props.children.toString() : "";
   }
-  // 把真实Dom作为一个属性放在虚拟Dom上，为以后更新做准备
   // vdom.dom = dom;
   return dom;
 }
@@ -115,13 +116,31 @@ function mountClassComponent(vdom) {
   let { type, props } = vdom;
   // 创建类的实例
   const classInstance = new type(props);
+  // 如果有就执行willMout函数
+  if (classInstance.UNSAFE_componentWillMount) {
+    classInstance.UNSAFE_componentWillMount();
+  }
   // 调用render方法，获取组件的虚拟dom对象
   let renderVdom = classInstance.render();
+  // 记录挂载的Vdom
+  classInstance.oldRenderDom = renderVdom;
   // 渲染真实的dom
   let dom = createDom(renderVdom);
+  // 判断是否有挂载完成的方法
+  if (classInstance.componentDidMount) {
+    dom.componentDidMount = classInstance.componentDidMount.bind(classInstance);
+  }
   // 为了类组件更新，把真实的dom挂载在类的实例上
   classInstance.dom = dom;
   return dom;
 }
+/**
+ *
+ * @param {*} oldVdomParent 父真实dom
+ * @param {*} oldVdom 老的虚拟dom
+ * @param {*} newVdom 新的虚拟dom
+ */
+function compareTwoVdom(oldVdomParent, oldVdom, newVdom) {}
+
 // eslint-disable-next-line import/no-anonymous-default-export
-export { render };
+export { render, compareTwoVdom };

@@ -1,8 +1,8 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2021-11-01 18:06:47
+ * @LastEditTime: 2021-11-15 21:46:59
  */
-import { createDom } from "./react-dom";
+import { createDom, compareTwoVdom } from "./react-dom";
 export let updateQueue = {
   // 是否是处于批量更新模式
   isBatchingUpdate: false,
@@ -12,7 +12,7 @@ export let updateQueue = {
   batchUpdate: function () {
     //更新当前的组件
     for (let updater of this.updaters) {
-      updater.updateCurrentClass();
+      updater.updateComponent();
     }
     // 更新完成，设置成false
     this.isBatchingUpdate = false;
@@ -34,24 +34,43 @@ class Updater {
     if (typeof callBack === "function") {
       this.callBacks.push(callBack);
     }
+    this.emitUpdate();
+  }
+  //属性和状态改变都要更新组件
+  emitUpdate() {
     // 如果是批量更新，缓存Updater
-    if (!updateQueue.isBatchingUpdate) {
-      updateQueue.updaters.add(this);
+    if (updateQueue.isBatchingUpdate) {
+      this.updateComponent();
     } else {
-      this.updateCurrentClass();
+      updateQueue.updaters.add(this);
     }
   }
-  updateCurrentClass() {
-    let { pendingStates, callBacks, classInstance } = this;
+  updateComponent() {
+    let { pendingStates, classInstance } = this;
     // 当前有更新内容的时候
-    if (pendingStates.length) {
-      // 计算新状态
-      classInstance.state = this.getState();
-      // 调用更新
-      classInstance.forceUpdate();
-      // 执行所有的回调函数
-      callBacks.forEach((cb) => cb());
+    if (pendingStates.length > 0) {
+      this.shouldUpdate(classInstance, this.getState());
     }
+  }
+  /**
+   * 判断组件是否需要更新
+   * @param {*} classInstance  组件实例
+   * @param {*} nextState 最新的状态
+   */
+  shouldUpdate(classInstance, nextState) {
+    // 不管组件要不要刷新，其组件的state的属性一定会改变
+    classInstance.state = nextState;
+    // 判断是否需要更新
+    if (
+      classInstance.shouldComponentUpdate &&
+      !classInstance.shouldComponentUpdate(
+        classInstance.props,
+        classInstance.state
+      )
+    ) {
+      return;
+    }
+    classInstance.forceUpdate();
   }
   getState() {
     let { classInstance, pendingStates, callBacks } = this;
@@ -84,15 +103,29 @@ class Component {
     this.updater.addState(partialState, callBack);
   }
   forceUpdate() {
+    if (this.componentWillUpdate) {
+      this.componentWillUpdate();
+    }
     // 获取最新的虚拟Dom
-    let newVdom = this.render();
+    let newRenderVdom = this.render();
+    // let oldRenderVdom = this.oldRenderDom;
+    // let oldDom = oldRenderVdom.dom;
+    // console.log("newRenderVdom", newRenderVdom);
+    // console.log("oldRenderVdom", oldRenderVdom);
+    // console.log("oldDom", oldDom);
+    // 比较虚拟新老两个Dom的差异,domDiff
+    // compareTwoVdom(oldDom.parentNode, oldRenderVdom, newRenderVdom);
     // 更新组件实例
-    updateClassComponent(this, newVdom);
+    updateClassComponent(this, newRenderVdom);
+    if (this.componentDidUpdate) {
+      this.componentDidUpdate();
+    }
   }
   render() {
     throw new Error("此方法为抽象方法，需要子类实现");
   }
 }
+
 /**
  * 更新类组件实例
  * @param {*} classInstance

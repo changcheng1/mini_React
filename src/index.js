@@ -1,11 +1,11 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-11-15 18:59:30
+ * @LastEditTime: 2021-11-19 17:35:58
  */
-import { render } from "./core/react-dom"; //核心库
-import { Component } from "./core/react";
+import React from "./core/react";
+import ReactDOM from "./core/react-dom"; //核心库
 // ReactDom会保证浏览器的Dom和React元素一致
-class FunctionClass extends Component {
+class FunctionClass extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -29,4 +29,4 @@ class FunctionClass extends Component {
   }
 }
 // 核心渲染方法
-render(<FunctionClass />, document.getElementById("root"));
+ReactDOM.render(<FunctionClass />, document.getElementById("root"));

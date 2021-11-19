@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-11-15 21:47:11
+ * @LastEditTime: 2021-11-19 17:34:34
  */
 import { addEvent } from "./event";
 // 1.把Vdom虚拟dom变成真实Dom
@@ -58,7 +58,7 @@ export function createDom(vdom) {
   } else {
     document.textContent = props.children ? props.children.toString() : "";
   }
-  // vdom.dom = dom;
+  vdom.dom = dom;
   return dom;
 }
 /**
@@ -143,4 +143,8 @@ function mountClassComponent(vdom) {
 function compareTwoVdom(oldVdomParent, oldVdom, newVdom) {}
 
 // eslint-disable-next-line import/no-anonymous-default-export
-export { render, compareTwoVdom };
+const ReactDOM = {
+  render,
+};
+
+export default ReactDOM;

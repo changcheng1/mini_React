@@ -1,8 +1,8 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2021-11-15 21:46:59
+ * @LastEditTime: 2021-12-13 14:46:09
  */
-import { createDom, compareTwoVdom } from "./react-dom";
+import ReactDOM,{compareTwoVdom ,createDom} from "./react-dom";
 export let updateQueue = {
   // 是否是处于批量更新模式
   isBatchingUpdate: false,
@@ -107,16 +107,13 @@ class Component {
       this.componentWillUpdate();
     }
     // 获取最新的虚拟Dom
-    let newRenderVdom = this.render();
-    // let oldRenderVdom = this.oldRenderDom;
-    // let oldDom = oldRenderVdom.dom;
-    // console.log("newRenderVdom", newRenderVdom);
-    // console.log("oldRenderVdom", oldRenderVdom);
-    // console.log("oldDom", oldDom);
-    // 比较虚拟新老两个Dom的差异,domDiff
-    // compareTwoVdom(oldDom.parentNode, oldRenderVdom, newRenderVdom);
-    // 更新组件实例
-    updateClassComponent(this, newRenderVdom);
+    let newRenderVdom = this.render(); 
+    let oldRenderVdom = this.oldRenderDom;
+    debugger
+    let oldDom = oldRenderVdom.dom;
+    //比较虚拟新老两个Dom的差异,domDiff
+    let currentRenderVdom = compareTwoVdom(oldDom.parentNode, oldRenderVdom, newRenderVdom);
+    this.oldRenderDom = currentRenderVdom
     if (this.componentDidUpdate) {
       this.componentDidUpdate();
     }
@@ -124,20 +121,5 @@ class Component {
   render() {
     throw new Error("此方法为抽象方法，需要子类实现");
   }
-}
-
-/**
- * 更新类组件实例
- * @param {*} classInstance
- * @param {*} Vom
- */
-function updateClassComponent(classInstance, newVdom) {
-  // 取出这个类组件上次渲染出的真实Dom
-  let oldDom = classInstance.dom;
-  // 获取新的dom元素
-  let newDom = createDom(newVdom);
-  // 节点替换
-  oldDom.parentNode.replaceChild(newDom, oldDom);
-  classInstance.dom = newDom;
 }
 export default Component;

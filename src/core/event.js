@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2021-11-05 14:33:25
+ * @LastEditTime: 2022-01-24 21:13:08
  */
 // 合成事件
 import { updateQueue } from "./component";
@@ -29,8 +29,6 @@ export function addEvent(dom, eventType, listener) {
 //
 // 这里是原生对象event
 function dispatchEvent(event) {
-  // 队列设置成批量更新
-  updateQueue.isBatchingUpdate = true;
   let { target, type } = event; // target == 触发事件的dom type == click||keyUp...
   // 获取事件类型
   let eventType = `$on${type}`; // onClick
@@ -47,8 +45,8 @@ function dispatchEvent(event) {
     // 不停冒泡到父级
     target = target.parentNode;
   }
-  // 批量更新一下，同时设置为flase，等待下一次setState
-  updateQueue.batchUpdate();
+  updateQueue.isBatchingUpdate = false; //批量更新设置为false
+  updateQueue.batchUpdate(); // 批量更新一下，同时设置为flase，等待下一次setState
   // 清空合成事件
   for (let key in syntheticEvent) {
     syntheticEvent[key] = {};

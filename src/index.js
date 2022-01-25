@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-12-13 14:59:08
+ * @LastEditTime: 2022-01-25 14:32:17
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -17,15 +17,17 @@ class FunctionClass extends React.Component {
   };
   render() {
     return (
-      <div
-      className={`counter-${this.state.count}`}
-    >
-      <p>{this.state.count}</p>
-      <button  onClick={() => {
-        this.setCount();
-      }}
-    >点击</button>
-    </div>
+      <div className={`counter-${this.state.count}`}>
+        <p>{this.state.count}</p>
+        <button
+          onClick={() => {
+            this.setCount();
+          }}
+        >
+          点击
+        </button>
+        <p>1</p>
+      </div>
     );
   }
 }

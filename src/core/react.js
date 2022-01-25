@@ -1,8 +1,9 @@
 /*
  * @Author: cc
- * @LastEditTime: 2021-11-19 17:40:46
+ * @LastEditTime: 2022-01-25 14:11:26
  */
 import Component from "./component";
+import { wrapToVdom } from "../utils";
 /**
  *
  * @param {*} type  当前元素的类型
@@ -20,9 +21,11 @@ const React = {
     let props = { ...config };
     // 当前参数长度大于3，儿子不止一个，截取config后面所有的children
     if (arguments.length > 3) {
-      children = Array.prototype.slice.call(arguments, 2);
+      // 针对文本节点进行处理
+      props.children = Array.prototype.slice.call(arguments, 2).map(wrapToVdom);
+    } else {
+      props.children = wrapToVdom(children);
     }
-    props.children = children;
     return {
       type,
       props,

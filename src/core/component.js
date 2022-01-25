@@ -1,8 +1,8 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2021-12-13 14:46:09
+ * @LastEditTime: 2022-01-25 15:03:04
  */
-import ReactDOM,{compareTwoVdom ,createDom} from "./react-dom";
+import ReactDOM, { compareTwoVdom, createDom } from "./react-dom";
 export let updateQueue = {
   // 是否是处于批量更新模式
   isBatchingUpdate: false,
@@ -37,7 +37,8 @@ class Updater {
     this.emitUpdate();
   }
   //属性和状态改变都要更新组件
-  emitUpdate() {
+  emitUpdate(nextProps) {
+    this.nextProps = nextProps;
     // 如果是批量更新，缓存Updater
     if (updateQueue.isBatchingUpdate) {
       this.updateComponent();
@@ -46,10 +47,10 @@ class Updater {
     }
   }
   updateComponent() {
-    let { pendingStates, classInstance } = this;
+    let { pendingStates, classInstance, nextProps } = this;
     // 当前有更新内容的时候
-    if (pendingStates.length > 0) {
-      this.shouldUpdate(classInstance, this.getState());
+    if (nextProps || pendingStates.length > 0) {
+      this.shouldUpdate(classInstance, nextProps, this.getState());
     }
   }
   /**
@@ -57,7 +58,10 @@ class Updater {
    * @param {*} classInstance  组件实例
    * @param {*} nextState 最新的状态
    */
-  shouldUpdate(classInstance, nextState) {
+  shouldUpdate(classInstance, nextProps, nextState) {
+    if (nextProps) {
+      classInstance.props = nextProps;
+    }
     // 不管组件要不要刷新，其组件的state的属性一定会改变
     classInstance.state = nextState;
     // 判断是否需要更新
@@ -107,13 +111,16 @@ class Component {
       this.componentWillUpdate();
     }
     // 获取最新的虚拟Dom
-    let newRenderVdom = this.render(); 
+    let newRenderVdom = this.render();
     let oldRenderVdom = this.oldRenderDom;
-    debugger
     let oldDom = oldRenderVdom.dom;
-    //比较虚拟新老两个Dom的差异,domDiff
-    let currentRenderVdom = compareTwoVdom(oldDom.parentNode, oldRenderVdom, newRenderVdom);
-    this.oldRenderDom = currentRenderVdom
+    // 深度比较新旧两个虚拟DOM
+    let currentRenderVdom = compareTwoVdom(
+      oldDom.parentNode, // 父节点
+      oldRenderVdom, // 老的虚拟dom
+      newRenderVdom // 新的虚拟dom
+    );
+    this.oldRenderDom = currentRenderVdom;
     if (this.componentDidUpdate) {
       this.componentDidUpdate();
     }

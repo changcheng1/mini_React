@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-01-24 21:13:08
+ * @LastEditTime: 2022-01-26 13:44:21
  */
 // 合成事件
 import { updateQueue } from "./component";
@@ -26,12 +26,12 @@ export function addEvent(dom, eventType, listener) {
  *
  * @param {*} event 原生event对象
  */
-//
 // 这里是原生对象event
 function dispatchEvent(event) {
   let { target, type } = event; // target == 触发事件的dom type == click||keyUp...
   // 获取事件类型
   let eventType = `$on${type}`; // onClick
+  updateQueue.isBatchingUpdate = true; //把队列设置为批量更新模式
   // 劫持所有的事件到syntheticEvent对象上
   createSyntheticEvent(event);
   // 最后一直冒泡到document，把所有的相同类型事件处理函数执行一遍，最后冒泡到document

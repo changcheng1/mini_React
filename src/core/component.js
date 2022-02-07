@@ -1,13 +1,13 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-01-25 15:03:04
+ * @LastEditTime: 2022-01-27 10:40:50
  */
-import ReactDOM, { compareTwoVdom, createDom } from "./react-dom";
+import ReactDOM, { compareTwoVdom } from "./react-dom";
 export let updateQueue = {
   // 是否是处于批量更新模式
   isBatchingUpdate: false,
   // 避免多次add重复的Updater
-  updaters: new Set(),
+  updaters: [],
   // batch:批量
   batchUpdate: function () {
     //更新当前的组件
@@ -21,19 +21,13 @@ export let updateQueue = {
 };
 class Updater {
   constructor(classInstance) {
-    // 类组件的实例
-    this.classInstance = classInstance;
-    // 第二个参数的回调参数
-    this.callBacks = [];
-    // 等待生效的状态，可能是一个对象，也可能是一个函数
-    this.pendingStates = [];
+    this.classInstance = classInstance; // 类组件的实例
+    this.callBacks = []; // 第二个参数的回调参数
+    this.pendingStates = []; // 等待生效的状态，可能是一个对象，也可能是一个函数
   }
   addState(partialState, callBack) {
     this.pendingStates.push(partialState);
-    // 回调函数判断
-    if (typeof callBack === "function") {
-      this.callBacks.push(callBack);
-    }
+    if (typeof callBack === "function") this.callBacks.push(callBack); // 状态更新之后的回调
     this.emitUpdate();
   }
   //属性和状态改变都要更新组件
@@ -41,9 +35,9 @@ class Updater {
     this.nextProps = nextProps;
     // 如果是批量更新，缓存Updater
     if (updateQueue.isBatchingUpdate) {
-      this.updateComponent();
+      updateQueue.updaters.push(this); // setState调用结束
     } else {
-      updateQueue.updaters.add(this);
+      this.updateComponent();
     }
   }
   updateComponent() {

@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-01-25 14:58:17
+ * @LastEditTime: 2022-02-07 10:49:47
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -31,14 +31,14 @@ export function createDom(vdom) {
     // 如果是文本类型
     dom = document.createTextNode(props.content);
   } else if (typeof type === "function") {
-    // 函数组件
+    // 如果是函数组件
     if (type.isReactComponent) {
       return mountClassComponent(vdom);
     } else {
       return mountFunctionComponent(vdom);
     }
   } else {
-    // 原生组件
+    // 否则就是原生组件
     dom = document.createElement(type);
   }
   updateProps(dom, {}, props); // 使用虚拟Dom的属性更新刚创建出来的真实Dom的属性
@@ -94,7 +94,7 @@ function mountFunctionComponent(vdom) {
   let { type, props } = vdom;
   let oldRenderVdom = type(props);
   vdom.oldRenderVdom = oldRenderVdom;
-  return createDOM(oldRenderVdom);
+  return createDom(oldRenderVdom);
 }
 /**
  * 把一个类组件转换成真实Dom
@@ -107,8 +107,8 @@ function mountClassComponent(vdom) {
   // 创建类的实例
   const classInstance = new type(props);
   vdom.classInstance = classInstance;
-  if (classInstance.UNSAFE_componentWillMount) {
-    classInstance.UNSAFE_componentWillMount(); // 如果有就执行UNSAFE_componentWillMount函数
+  if (classInstance.componentWillMount) {
+    classInstance.componentWillMount(); // 如果有就执行componentWillMount函数
   }
   let oldRenderVdom = classInstance.render(); // 调用render方法，获取组件的虚拟dom对象
   classInstance.oldRenderDom = oldRenderVdom; // 实例的oldRenderDom身上挂载
@@ -119,8 +119,6 @@ function mountClassComponent(vdom) {
   if (classInstance.componentDidMount) {
     dom.componentDidMount = classInstance.componentDidMount.bind(classInstance);
   }
-  // 为了类组件更新，把真实的dom挂载在类的实例上，因为后续虚拟dom diff，所以这里没用了
-  // classInstance.dom = dom;
   return dom;
 }
 /**
@@ -179,12 +177,13 @@ function updateElement(oldVdom, newVdom) {
   if (oldVdom.type === REACT_TEXT) {
     //文件节点
     let currentDOM = (newVdom.dom = oldVdom.dom); //复用老的真实DOM节点
+    if (currentDOM.textContent === newVdom.props.content) return; // 判断老新内容是否相同
     currentDOM.textContent = newVdom.props.content; //直接修改老的DOM节点的文件就可以了
   } else if (typeof oldVdom.type === "string") {
     //说明是个原生组件 div
     let currentDOM = (newVdom.dom = oldVdom.dom); //复用老的DIV的真实DOM
     updateProps(currentDOM, oldVdom.props, newVdom.props); //更新自己的属性
-    //更新儿子们 只有原生的组件 div span才会去深度对比
+    //更新儿子们 只有原生的组件 div span之类的才会去深度对比
     updateChildren(currentDOM, oldVdom.props.children, newVdom.props.children);
     // 老的dom是个组件
   } else if (typeof oldVdom.type === "function") {
@@ -196,7 +195,7 @@ function updateElement(oldVdom, newVdom) {
   }
 }
 /**
- * 如果老的虚拟DOM节点和新的虚拟DOM节点都是类组件的话，走这个更新逻辑
+ * 如果老的虚拟DOM节点和新的虚拟DOM节点都是类组件的
  * @param {*} oldVdom 老的虚拟DOM节点
  * @param {*} newVdom 新的虚拟DOM节点
  */
@@ -205,11 +204,14 @@ function updateClassComponent(oldVdom, newVdom) {
   newVdom.oldRenderVdom = oldVdom.oldRenderVdom; //上一次的这个类组件的渲染出来的虚拟DOM
   // 组件将要接受新的属性
   if (classInstance.componentWillReceiveProps) {
-    classInstance.componentWillReceiveProps();
+    classInstance.componentWillReceiveProps(classInstance.props);
   }
   //触发组件的更新，要把新的属性传过来
   classInstance.updater.emitUpdate(newVdom.props);
 }
+/**
+ * 更新函数组件
+ */
 function updateFunctionComponent(oldVdom, newVdom) {
   let parentDOM = findDOM(oldVdom).parentNode;
   let { type, props } = newVdom;
@@ -225,12 +227,12 @@ function updateFunctionComponent(oldVdom, newVdom) {
  * @param {*} newVChildren 新的儿子们
  */
 function updateChildren(parentDOM, oldVChildren, newVChildren) {
-  //因为children可能是对象，也可能是数组,为了方便按索引比较，全部格式化为数组
+  //因为children可能是对象，也可能是数组,为了方便遍历，全部格式化为数组
   oldVChildren = Array.isArray(oldVChildren) ? oldVChildren : [oldVChildren];
   newVChildren = Array.isArray(newVChildren) ? newVChildren : [newVChildren];
   let maxLength = Math.max(oldVChildren.length, newVChildren.length);
   for (let i = 0; i < maxLength; i++) {
-    //在儿子们里查找，找索引是大于当前索引的
+    // 找出老的有，新的没有的节点
     let nextDOM = oldVChildren.find(
       (item, index) => index > i && item && item.dom
     );

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2021-11-05 10:21:21
+ * @LastEditTime: 2022-01-29 15:05:28
 -->
 
 ### React jsx 语法基于 Babel 解析
@@ -13,7 +13,6 @@
 
 // 真实Dom
  <div className="box" style={{color:'red'}}>
-   内容
   <span>1</span>
   <p>2</p>
 </div>
@@ -24,7 +23,6 @@
   props:{
     className:"box"
   },
- "内容"
   children:[{
     type:"span",
     props:{
@@ -74,8 +72,8 @@
     console.log(this.state.number); // 0
     this.setState({number:this.state.number+1});
     console.log(this.state.number); // 0
-        // 第一个参数，获取最新的state
-    // 第二个参数，可以传入函数，获取最新的state
+    // 第一个参数，获取最新的state
+    // 第二个参数，回调函数，获取最新的state
     this.setState((lastState)=>{number:lastState.number+1},()=>{
         console.log(this.state.number) // 1
     })
@@ -98,6 +96,63 @@
 
 ![avatar](./img/lifeCycle.png)
 
+```javaScript
+父组件 1.constructor 初始化属性和状态对象
+父组件 2.componentWillMount 组件将要挂载
+父组件 3.render 重新计算新的虚拟DOM
+子组件 1.componentWillMount 组件将要挂载
+子组件 2.render
+子组件 3.componentDidMount 组件挂载完成
+父组件 4.componentDidMount 组件挂载完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 4.componentWillReceiveProps 组件将要接收到新的属性
+子组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 7.componentDidUpdate 组件更新完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 6.componentWillUnmount 组件将要卸载
+父组件 7.componentDidUpdate 组件更新完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 1.componentWillMount 组件将要挂载
+子组件 2.render
+子组件 3.componentDidMount 组件挂载完成
+父组件 7.componentDidUpdate 组件更新完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 4.componentWillReceiveProps 组件将要接收到新的属性
+子组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 7.componentDidUpdate 组件更新完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 4.componentWillReceiveProps 组件将要接收到新的属性
+子组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 7.componentDidUpdate 组件更新完成
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 5.shouldComponentUpdate 决定组件是否需要更新?
+父组件 6.componentWillUpdate 组件将要更新
+父组件 3.render 重新计算新的虚拟DOM
+子组件 4.componentWillReceiveProps 组件将要接收到新的属性
+子组件 5.shouldComponentUpdate 决定组件是否需要更新?
+子组件 6.componentWillUpdate 组件将要更新
+子组件 2.render
+子组件 7.componentDidUpdate 组件更新完成
+父组件 7.componentDidUpdate 组件更新完成
+```
+
 ### domDiff
+
+https://mp.weixin.qq.com/s/Zi4spufaPxeZTMbjj_b55A
 
 ![avatar](./img/domDiff.jpeg)

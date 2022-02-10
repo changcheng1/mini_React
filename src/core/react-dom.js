@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-07 10:49:47
+ * @LastEditTime: 2022-02-10 15:09:51
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -177,7 +177,7 @@ function updateElement(oldVdom, newVdom) {
   if (oldVdom.type === REACT_TEXT) {
     //文件节点
     let currentDOM = (newVdom.dom = oldVdom.dom); //复用老的真实DOM节点
-    if (currentDOM.textContent === newVdom.props.content) return; // 判断老新内容是否相同
+    if (currentDOM.textContent === newVdom.props.content) return; // 新老内容相同跳过更新
     currentDOM.textContent = newVdom.props.content; //直接修改老的DOM节点的文件就可以了
   } else if (typeof oldVdom.type === "string") {
     //说明是个原生组件 div
@@ -230,9 +230,10 @@ function updateChildren(parentDOM, oldVChildren, newVChildren) {
   //因为children可能是对象，也可能是数组,为了方便遍历，全部格式化为数组
   oldVChildren = Array.isArray(oldVChildren) ? oldVChildren : [oldVChildren];
   newVChildren = Array.isArray(newVChildren) ? newVChildren : [newVChildren];
+  // 找出最长的vdom数组进行遍历
   let maxLength = Math.max(oldVChildren.length, newVChildren.length);
+  // 遍历虚拟vdom，找出老的有，新的没有的节点
   for (let i = 0; i < maxLength; i++) {
-    // 找出老的有，新的没有的节点
     let nextDOM = oldVChildren.find(
       (item, index) => index > i && item && item.dom
     );

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-01-29 15:05:28
+ * @LastEditTime: 2022-02-09 22:57:15
 -->
 
 ### React jsx 语法基于 Babel 解析
@@ -56,6 +56,11 @@
 ### 合成事件和批量更新
 
 <br/>
+React 类组件中的 setState 是同步还是异步？
+
+setState 本身不是异步，只是 React 源码中处理为异步，在 React 生命周期或者作用于下为异步，在原生环境(setTimeout，promise)为同步
+
+<br/>
 
 ![avatar](./img/setState.png)
 
@@ -90,7 +95,9 @@
 
 ```
 
-### react 生命周期
+### react 新版生命周期
+
+相对于老版，去除了几个 will 前缀生命周期，例如，componentWillUpdate,componentWillMount,componentWillReceiveProps 等
 
 <br/>
 

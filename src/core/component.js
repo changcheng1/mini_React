@@ -1,12 +1,13 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-01-27 10:40:50
+ * @LastEditTime: 2022-02-10 15:21:11
  */
 import ReactDOM, { compareTwoVdom } from "./react-dom";
+// updateQueue和updates是单例的，整个应用只有一份
 export let updateQueue = {
   // 是否是处于批量更新模式
   isBatchingUpdate: false,
-  // 避免多次add重复的Updater
+  // 存放的是组件的实例
   updaters: [],
   // batch:批量
   batchUpdate: function () {
@@ -33,9 +34,9 @@ class Updater {
   //属性和状态改变都要更新组件
   emitUpdate(nextProps) {
     this.nextProps = nextProps;
-    // 如果是批量更新，缓存Updater
-    if (updateQueue.isBatchingUpdate) {
-      updateQueue.updaters.push(this); // setState调用结束
+    // 把状态缓存起来，等待下一次更新
+    if (!updateQueue.isBatchingUpdate) {
+      updateQueue.updaters.push(this);
     } else {
       this.updateComponent();
     }
@@ -44,7 +45,7 @@ class Updater {
     let { pendingStates, classInstance, nextProps } = this;
     // 当前有更新内容的时候
     if (nextProps || pendingStates.length > 0) {
-      this.shouldUpdate(classInstance, nextProps, this.getState());
+      this.shouldUpdate(classInstance, nextProps, this.getState(nextProps));
     }
   }
   /**
@@ -53,38 +54,49 @@ class Updater {
    * @param {*} nextState 最新的状态
    */
   shouldUpdate(classInstance, nextProps, nextState) {
+    // 判断是否需要更新
+    let willUpdate = true;
+    if (
+      classInstance.shouldComponentUpdate &&
+      !classInstance.shouldComponentUpdate(nextProps, nextState)
+    ) {
+      willUpdate = false;
+    }
+    // 判断是否有componentWillUpdate生命周期
+    if (willUpdate && classInstance.componentWillUpdate) {
+      classInstance.componentWillUpdate();
+    }
+    // 不管组件要不要刷新，其组件的state和props一定会改变
     if (nextProps) {
       classInstance.props = nextProps;
     }
-    // 不管组件要不要刷新，其组件的state的属性一定会改变
-    classInstance.state = nextState;
-    // 判断是否需要更新
-    if (
-      classInstance.shouldComponentUpdate &&
-      !classInstance.shouldComponentUpdate(
-        classInstance.props,
+    // 静态方法getDerivedStateFromProps在类的实例上是没有的
+    if (classInstance.constructor.getDerivedStateFromProps) {
+      let paritialState = classInstance.constructor.getDerivedStateFromProps(
+        nextProps,
         classInstance.state
-      )
-    ) {
-      return;
+      );
+      if (paritialState) {
+        nextState = { nextState, ...paritialState };
+      }
     }
-    classInstance.forceUpdate();
+    classInstance.state = nextState;
+    if (willUpdate) classInstance.forceUpdate();
   }
   getState() {
-    let { classInstance, pendingStates, callBacks } = this;
+    //如何计算最新的状态
+    let { classInstance, pendingStates } = this;
     let { state } = classInstance;
-    // state合并
-    pendingStates.forEach((newState) => {
-      if (typeof newState === "function") {
-        newState = newState(state);
+    pendingStates.forEach((nextState) => {
+      //如果pendingState是一个函数的话，传入老状态，返回新状态，再进行合并
+      if (typeof nextState === "function") {
+        console.log(state);
+        nextState = nextState(state);
+        console.log(nextState);
       }
-      state = { ...state, ...newState };
+      state = { ...state, ...nextState };
     });
-    // 清空暂存状态
-    pendingStates.length = 0;
-    // 清空回调函数
-    callBacks.length = 0;
-    // 返回新状态
+    pendingStates.length = 0; //清空数组
     return state;
   }
 }
@@ -101,9 +113,6 @@ class Component {
     this.updater.addState(partialState, callBack);
   }
   forceUpdate() {
-    if (this.componentWillUpdate) {
-      this.componentWillUpdate();
-    }
     // 获取最新的虚拟Dom
     let newRenderVdom = this.render();
     let oldRenderVdom = this.oldRenderDom;

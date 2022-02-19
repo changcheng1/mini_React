@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-10 15:09:51
+ * @LastEditTime: 2022-02-19 21:55:04
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -25,7 +25,8 @@ function render(vdom, container) {
  */
 export function createDom(vdom) {
   // 否则就是一个虚拟Dom对象，也就是一个React元素
-  let { type, props } = vdom;
+  let { type, props, ref } = vdom;
+  console.log("vdom", vdom);
   let dom;
   if (type === REACT_TEXT) {
     // 如果是文本类型
@@ -51,6 +52,9 @@ export function createDom(vdom) {
     document.textContent = props.children ? props.children.toString() : "";
   }
   vdom.dom = dom; // 当根据一个vdom创建出一个真实dom以后，真实dom挂载到vdom.dom的属性上
+  if (ref) {
+    ref.current = dom;
+  }
   return dom;
 }
 /**
@@ -106,15 +110,27 @@ function mountClassComponent(vdom) {
   let { type, props } = vdom;
   // 创建类的实例
   const classInstance = new type(props);
+  // 获取provider中的value属性，给类的context赋值
+  if (type.contextType) {
+    classInstance.context = type.contextType.Provider._value;
+  }
   vdom.classInstance = classInstance;
   if (classInstance.componentWillMount) {
     classInstance.componentWillMount(); // 如果有就执行componentWillMount函数
   }
+  // 组件挂载的时候默认执行一次getDerivedStateFromProps
+  if (type.getDerivedStateFromProps) {
+    let partialState = type.getDerivedStateFromProps(
+      classInstance.props,
+      classInstance.state
+    );
+    if (partialState) {
+      classInstance.state = { ...classInstance.state, ...partialState };
+    }
+  }
   let oldRenderVdom = classInstance.render(); // 调用render方法，获取组件的虚拟dom对象
-  classInstance.oldRenderDom = oldRenderVdom; // 实例的oldRenderDom身上挂载
-  vdom.oldRenderDom = oldRenderVdom; // 将老的vdom挂载在类的实例上
+  classInstance.oldRenderVdom = vdom.oldRenderVdom = oldRenderVdom;
   let dom = createDom(oldRenderVdom); // 渲染真实的dom
-
   // 判断是否有挂载完成的方法
   if (classInstance.componentDidMount) {
     dom.componentDidMount = classInstance.componentDidMount.bind(classInstance);
@@ -249,7 +265,7 @@ function updateChildren(parentDOM, oldVChildren, newVChildren) {
  * 查找此虚拟dom对应的真实dom
  * @param {*} vdom
  */
-function findDOM(vdom) {
+export function findDOM(vdom) {
   let { type } = vdom;
   let dom;
   if (typeof type === "function") {

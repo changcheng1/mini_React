@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-02-08 22:13:21
+ * @LastEditTime: 2022-02-19 21:16:42
  */
 // 合成事件
 import { updateQueue } from "./component";
@@ -33,7 +33,7 @@ function dispatchEvent(event) {
   let eventType = `$on${type}`; // onClick
   updateQueue.isBatchingUpdate = true; //把队列设置为批量更新模式
   // 劫持所有的事件到syntheticEvent对象上
-  createSyntheticEvent(event);
+  // createSyntheticEvent(event);
   // 最后一直冒泡到document，把所有的相同类型事件处理函数执行一遍，最后冒泡到document
   while (target) {
     // 第一次是获取当前点击的dom
@@ -49,9 +49,9 @@ function dispatchEvent(event) {
   // 批量更新一下，同时设置为flase，等待下一次setState
   updateQueue.batchUpdate();
   // 清空合成事件
-  for (let key in syntheticEvent) {
-    syntheticEvent[key] = {};
-  }
+  // for (let key in syntheticEvent) {
+  //   syntheticEvent[key] = {};
+  // }
 }
 /**
  * React中事件函数中event用的是syntheticEvent，也就是经过处理的,React处理了浏览器的兼容性

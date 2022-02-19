@@ -1,135 +1,142 @@
-/*
- * @Author: changcheng
- * @LastEditTime: 2022-02-10 15:21:11
- */
-import ReactDOM, { compareTwoVdom } from "./react-dom";
-// updateQueue和updates是单例的，整个应用只有一份
+import { compareTwoVdom, findDOM } from "./react-dom";
+//更新队列
 export let updateQueue = {
-  // 是否是处于批量更新模式
-  isBatchingUpdate: false,
-  // 存放的是组件的实例
+  isBatchingUpdate: false, //当前是否处于批量更新模式,默认值是false
   updaters: [],
-  // batch:批量
-  batchUpdate: function () {
-    //更新当前的组件
-    for (let updater of this.updaters) {
+  batchUpdate() {
+    //批量更新
+    for (let updater of updateQueue.updaters) {
       updater.updateComponent();
     }
-    // 更新完成，设置成false
-    this.isBatchingUpdate = false;
-    this.updaters.length = 0;
+    updateQueue.isBatchingUpdate = false;
+    updateQueue.updaters.length = 0;
   },
 };
 class Updater {
   constructor(classInstance) {
-    this.classInstance = classInstance; // 类组件的实例
-    this.callBacks = []; // 第二个参数的回调参数
-    this.pendingStates = []; // 等待生效的状态，可能是一个对象，也可能是一个函数
+    this.classInstance = classInstance; //类组件的实例
+    this.pendingStates = []; //等待生效的状态,可能是一个对象，也可能是一个函数
+    this.callbacks = [];
   }
-  addState(partialState, callBack) {
-    this.pendingStates.push(partialState);
-    if (typeof callBack === "function") this.callBacks.push(callBack); // 状态更新之后的回调
+  addState(partialState, callback) {
+    this.pendingStates.push(partialState); ///等待更新的或者说等待生效的状态
+    if (typeof callback === "function") this.callbacks.push(callback); //状态更新后的回调
     this.emitUpdate();
   }
-  //属性和状态改变都要更新组件
+  //一个组件不管属性变了，还是状态变了，都会更新。
   emitUpdate(nextProps) {
     this.nextProps = nextProps;
-    // 把状态缓存起来，等待下一次更新
-    if (!updateQueue.isBatchingUpdate) {
-      updateQueue.updaters.push(this);
+    if (updateQueue.isBatchingUpdate) {
+      //如果当前的批量模式。先缓存updater
+      updateQueue.updaters.push(this); //本次setState调用结束
     } else {
-      this.updateComponent();
+      this.updateComponent(); //直接更新组件
     }
   }
   updateComponent() {
-    let { pendingStates, classInstance, nextProps } = this;
-    // 当前有更新内容的时候
+    let { classInstance, pendingStates, nextProps } = this;
+    // 如果有等待更新的状态对象的话
     if (nextProps || pendingStates.length > 0) {
-      this.shouldUpdate(classInstance, nextProps, this.getState(nextProps));
+      shouldUpdate(classInstance, nextProps, this.getState(nextProps));
     }
   }
-  /**
-   * 判断组件是否需要更新
-   * @param {*} classInstance  组件实例
-   * @param {*} nextState 最新的状态
-   */
-  shouldUpdate(classInstance, nextProps, nextState) {
-    // 判断是否需要更新
-    let willUpdate = true;
-    if (
-      classInstance.shouldComponentUpdate &&
-      !classInstance.shouldComponentUpdate(nextProps, nextState)
-    ) {
-      willUpdate = false;
-    }
-    // 判断是否有componentWillUpdate生命周期
-    if (willUpdate && classInstance.componentWillUpdate) {
-      classInstance.componentWillUpdate();
-    }
-    // 不管组件要不要刷新，其组件的state和props一定会改变
-    if (nextProps) {
-      classInstance.props = nextProps;
-    }
-    // 静态方法getDerivedStateFromProps在类的实例上是没有的
-    if (classInstance.constructor.getDerivedStateFromProps) {
-      let paritialState = classInstance.constructor.getDerivedStateFromProps(
-        nextProps,
-        classInstance.state
-      );
-      if (paritialState) {
-        nextState = { nextState, ...paritialState };
-      }
-    }
-    classInstance.state = nextState;
-    if (willUpdate) classInstance.forceUpdate();
-  }
-  getState() {
+  getState(nextProps) {
     //如何计算最新的状态
     let { classInstance, pendingStates } = this;
     let { state } = classInstance;
     pendingStates.forEach((nextState) => {
       //如果pendingState是一个函数的话，传入老状态，返回新状态，再进行合并
       if (typeof nextState === "function") {
-        console.log(state);
         nextState = nextState(state);
-        console.log(nextState);
       }
       state = { ...state, ...nextState };
     });
     pendingStates.length = 0; //清空数组
+    // 执行getDerivedStateFromProps方法
+    if (classInstance.constructor.getDerivedStateFromProps) {
+      let partialState = classInstance.constructor.getDerivedStateFromProps(
+        nextProps,
+        classInstance.state
+      );
+      if (partialState) {
+        state = { ...state, ...partialState };
+      }
+    }
     return state;
   }
 }
-class Component {
-  // 用来区分是类组件还是函数组件
+/**
+ * 判断组件是否需要更新
+ * @param {*} classInstance 组件实例
+ * @param {*} nextState  新的状态
+ */
+function shouldUpdate(classInstance, nextProps, nextState) {
+  let willUpdate = true; //是否要更新
+  //如果有shouldComponentUpdate方法，并且它的返回值为false的话，那就不更新
+  if (
+    classInstance.shouldComponentUpdate &&
+    !classInstance.shouldComponentUpdate(nextProps, nextState)
+  ) {
+    willUpdate = false;
+  }
+  if (willUpdate && classInstance.componentWillUpdate) {
+    classInstance.componentWillUpdate();
+  }
+  //不管要不要更新，新的属性和状态对象都得改了
+  if (nextProps) {
+    classInstance.props = nextProps;
+  }
+  // 获取provider的私有value属性
+  if (classInstance.constructor.contextType) {
+    classInstance.context =
+      classInstance.constructor.contextType.Provider._value;
+  }
+  classInstance.state = nextState; //如果要更新走，组件的更新逻辑
+  if (willUpdate) classInstance.updateComponent();
+}
+export default class Component {
   static isReactComponent = true;
   constructor(props) {
     this.props = props;
     this.state = {};
     this.updater = new Updater(this);
   }
-  // partialState:部分状态
-  setState(partialState, callBack) {
-    this.updater.addState(partialState, callBack);
+  /**
+   *
+   * @param {*} partialState 第一个参数可以是函数也可以是对象
+   * @param {*} callback 回调函数，用来setState合并并重新渲染后执行
+   */
+  setState(partialState, callback) {
+    this.updater.addState(partialState, callback);
   }
+  //一般来说组件的属性和状态变化了才会更新组件
+  //如果属性和状态没变，我们也想更新怎么办呢？就可以调用forceUpdate，强制更新
   forceUpdate() {
-    // 获取最新的虚拟Dom
-    let newRenderVdom = this.render();
-    let oldRenderVdom = this.oldRenderDom;
-    let oldDom = oldRenderVdom.dom;
-    // 深度比较新旧两个虚拟DOM
-    let currentRenderVdom = compareTwoVdom(
-      oldDom.parentNode, // 父节点
-      oldRenderVdom, // 老的虚拟dom
-      newRenderVdom // 新的虚拟dom
-    );
-    this.oldRenderDom = currentRenderVdom;
+    let nextState = this.state;
+    let nextProps = this.props;
+    if (this.constructor.getDerivedStateFromProps) {
+      let partialState = this.constructor.getDerivedStateFromProps(
+        nextProps,
+        nextState
+      );
+      if (partialState) {
+        nextState = { ...nextState, ...partialState };
+      }
+    }
+    this.state = nextState;
+    this.updateComponent();
+  }
+  updateComponent() {
+    let newRenderVdom = this.render(); //重新调用render方法，得到新的虚拟DOM
+    let oldRenderVdom = this.oldRenderVdom;
+    let oldDOM = findDOM(oldRenderVdom);
+    let extraArgs =
+      this.getSnapshotBeforeUpdate && this.getSnapshotBeforeUpdate();
+    //深度比较新旧两个虚拟DOM
+    compareTwoVdom(oldDOM.parentNode, oldRenderVdom, newRenderVdom);
+    this.oldRenderVdom = newRenderVdom;
     if (this.componentDidUpdate) {
-      this.componentDidUpdate();
+      this.componentDidUpdate(this.props, this.state, extraArgs);
     }
   }
-  render() {
-    throw new Error("此方法为抽象方法，需要子类实现");
-  }
 }
-export default Component;

@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-01-25 14:11:26
+ * @LastEditTime: 2022-02-19 23:00:02
  */
 import Component from "./component";
 import { wrapToVdom } from "../utils";
@@ -13,9 +13,15 @@ import { wrapToVdom } from "../utils";
 // 抽离创建元素的方法，其实是个递归函数
 const React = {
   createElement: function (type, config, children) {
+    let ref;
+    let key;
     if (config) {
       delete config.__source;
       delete config.__self;
+      ref = config.ref;
+      delete config.ref;
+      key = config.key;
+      delete config.key;
     }
     //获取当前所有的属性
     let props = { ...config };
@@ -29,9 +35,28 @@ const React = {
     return {
       type,
       props,
+      key,
+      ref,
     };
   },
   Component,
+  createRef: () => {
+    return { current: null };
+  },
+  createContext: (initValue) => {
+    Provider._value = initValue;
+    function Provider(props) {
+      if (Provider._value) {
+        Object.assign(Provider._value, props.value);
+      } else {
+        Provider._value = props.value;
+      }
+      return props.children;
+    }
+    function Consumer(props) {
+      return props.children(Provider._value);
+    }
+    return { Provider, Consumer };
+  },
 };
-
 export default React;

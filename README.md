@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-02-09 22:57:15
+ * @LastEditTime: 2022-02-16 20:17:33
 -->
 
 ### React jsx 语法基于 Babel 解析
@@ -55,13 +55,6 @@
 
 ### 合成事件和批量更新
 
-<br/>
-React 类组件中的 setState 是同步还是异步？
-
-setState 本身不是异步，只是 React 源码中处理为异步，在 React 生命周期或者作用于下为异步，在原生环境(setTimeout，promise)为同步
-
-<br/>
-
 ![avatar](./img/setState.png)
 
 1. 在 React 中，事件的更新可能是异步的，是批量的，例如同时触发多个 setState
@@ -95,13 +88,23 @@ setState 本身不是异步，只是 React 源码中处理为异步，在 React 
 
 ```
 
-### react 新版生命周期
+### 父与子组件生命周期执行顺序
 
-相对于老版，去除了几个 will 前缀生命周期，例如，componentWillUpdate,componentWillMount,componentWillReceiveProps 等
+- 组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
+
+### react 老版生命周期
+
+- 初始化：constructor -> componentWillMount->render->componentDidMount
+
+- 更新：shouldComponentUpdate->componentWillUpdate->render->componentDidUpdate
+
+- 卸载：componentWillUnmount
 
 <br/>
 
-![avatar](./img/lifeCycle.png)
+![avatar](./img/oldLifeCycle.png)
+
+<br/>
 
 ```javaScript
 父组件 1.constructor 初始化属性和状态对象
@@ -156,6 +159,69 @@ setState 本身不是异步，只是 React 源码中处理为异步，在 React 
 子组件 2.render
 子组件 7.componentDidUpdate 组件更新完成
 父组件 7.componentDidUpdate 组件更新完成
+```
+
+### react 新版生命周期
+
+相对于老版，去除了几个 will 前缀生命周期,UNSAFE_componentWillUpdate,UNSAFE_componentWillMount,UNSAFE_componentWillReceiveProps。
+
+- 创建时： constructor -> getDerivedStateFromProps -> render -> componentDidMount
+
+- 更新时： getDerivedStateFromProps -> shouldComponentUpdate -> render -> getSnapShotBeforeUpdate -> componentDidUpdate
+
+- 卸载时： componentWillUnmount
+
+<br/>
+
+![avatar](./img/lifeCycle.png)
+
+<br/>
+
+### componentWillReceiveProps 和 getDerivedStateFromProps 的区别
+
+- componentWillReceiveProps(nextProps) 首次加载不会触发，父组件导致子组件更新时，即便 props 没变化，也会执行。
+
+- getDerivedStateFromProps(nextProps, prevState) **首次加载**，**父组件更新**，**props**，**setState**，**forceUpdate** 都会触发，将父级传入的 props 映射到 state 上，新生命周期当中用来替代 componentWillReceiveProps,如果不改变，需要 return null
+
+<br/>
+
+### getSnapshotBeforeUpdate
+
+- 获取 dom 更新前的信息，返回值传给 componentDidUpdate 第三个参数
+
+<br/>
+
+### React.createContext
+
+- 创建执行上下文，用来向下传递属性，类组件可以挂载 contextType 静态属性，函数组件可以直接使用<Provider>和<Consumer>组件，主题切换之类的用的比较多
+
+```javaScript
+  let {Provider,Counsumer} = React.createContext(); // 返回{provider,consumer}
+  <Provider value={color:'red',changeColor:this.changeColor}>
+    <Child>
+  </Provider>
+  <Consumer>
+    {
+      ({color}=>{
+        <p>{color}</p>
+      })
+    }
+  </Consumer>
+```
+
+```javaScript
+  //初始化默认值
+  const MyContext = React.createContext({color:'red'});
+  <MyContext.Provider value={color:'blue'}>
+    <Child/>
+  </MyContext.Provider>
+  //另一种写法
+  class Child extends React.Component {
+    static contextType = MyContext;
+    render() {
+      let {color} = this.context;
+    }
+  }
 ```
 
 ### domDiff

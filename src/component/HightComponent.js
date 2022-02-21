@@ -1,38 +1,34 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-02-19 23:24:13
+ * @LastEditTime: 2022-02-20 20:46:02
  */
 import React from "react";
-// 高阶组件：一个函数，传入一个组件，返回一个组件
-// 受控组件就是value值受onChange方法控制 <input value={this.props.id}  onChange={change}/>
-// 非受控组件就是defaultValue不受控 <input defaultValue={this.props.id} />
-
-const Name = (props) => {
-  const { value, onChange } = props;
-  return <input value={value} onChange={onChange} />;
-};
-const Age = (props) => {
-  const { value, onChange } = props;
-  return <input value={value} onChange={onChange} />;
-};
-const FormLocalStorage = (PropsComponent, name) => {
+// 高阶组件：一个函数，传入一个组件，返回一个组件，只能类组件了来用
+// 1.属性与方法代理
+let withLoading = (loadingMessag) => (oladComponent) => {
   return class extends React.Component {
-    state = { value: "" };
-    UNSAFE_componentWillMount() {
-      let value = localStorage.getItem(name);
-      this.setState({ value });
-    }
-    // 绑定当前的this指向
-    onChange = (event) => {
-      localStorage.setItem(name, event.target.value);
-      this.setState({ value: event.target.value });
+    show = () => {
+      console.log(`show${loadingMessag}`);
+    };
+    hide = () => {
+      console.log(`hide${loadingMessag}`);
     };
     render() {
-      return (
-        <PropsComponent value={this.state.value} onChange={this.onChange} />
-      );
+      let extraProps = { show: this.show, hide: this.hide };
+      return <oladComponent {...extraProps} />;
     }
   };
 };
-export const NameComponent = FormLocalStorage(Name, "name");
-export const AgeComponent = FormLocalStorage(Age, "age");
+// 装饰器默认传入Hello，作为HOC的参数
+@withLoading("加载中")
+class Hello extends React.Component {
+  render() {
+    return (
+      <div>
+        <button onClick={this.props.show}>显示</button>
+        <button onClick={this.props.hide}>隐藏</button>
+      </div>
+    );
+  }
+}
+export default Hello;

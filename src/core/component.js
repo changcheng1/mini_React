@@ -131,7 +131,8 @@ export default class Component {
     let oldRenderVdom = this.oldRenderVdom;
     let oldDOM = findDOM(oldRenderVdom);
     let extraArgs =
-      this.getSnapshotBeforeUpdate && this.getSnapshotBeforeUpdate();
+      this.getSnapshotBeforeUpdate &&
+      this.getSnapshotBeforeUpdate(this.props, this.state);
     //深度比较新旧两个虚拟DOM
     compareTwoVdom(oldDOM.parentNode, oldRenderVdom, newRenderVdom);
     this.oldRenderVdom = newRenderVdom;
@@ -139,4 +140,45 @@ export default class Component {
       this.componentDidUpdate(this.props, this.state, extraArgs);
     }
   }
+}
+export class PureComponent extends Component {
+  //重写了此方法,只有状态或者 属性变化了才会进行更新，否则 不更新
+  shouldComponentUpdate(nextProps, nextState) {
+    return (
+      !shallowEqual(this.props, nextProps) ||
+      !shallowEqual(this.state, nextState)
+    );
+  }
+}
+/**
+ * 用浅比较 obj1和obj2是否相等，***有问题***，只要引用地址相同，默认就是更新
+ * 只要内存地址一样，就认为是相等的，不一样就不相等
+ * 插件 Immutable.js 不可变数据
+ * @param {} obj1
+ * @param {*} obj2
+ */
+function Equal(obj1, obj2) {
+  if (obj1 === obj2)
+    //如果引用地址是一样的，就相等.不关心属性变没变
+    return true;
+  //任何一方不是对象或者 不是null也不相等  null null  NaN!==NaN
+  if (
+    typeof obj1 !== "object" ||
+    obj1 === null ||
+    typeof obj2 !== "object" ||
+    obj2 === null
+  ) {
+    return false;
+  }
+  let keys1 = Object.keys(obj1);
+  let keys2 = Object.keys(obj2);
+  if (keys1.length !== keys2.length) {
+    return false; //属性的数量不一样，不相等
+  }
+  for (let key of keys1) {
+    if (!obj2.hasOwnProperty(key) || obj1[key] !== obj2[key]) {
+      return false;
+    }
+  }
+  return true;
 }

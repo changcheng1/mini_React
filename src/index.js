@@ -1,9 +1,10 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-19 23:02:52
+ * @LastEditTime: 2022-02-23 23:40:17
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
+import { PureComponent } from "./core/component";
 import { ContextTypeClass } from "./component/ReactContext";
 // ReactDom会保证浏览器的Dom和React元素一致
 class ChildCounter extends React.Component {
@@ -70,7 +71,7 @@ class FunctionClass extends React.Component {
     this.setState({ count: this.state.count + 1 });
   };
   // 用来获取更新前的dom信息，返回值传给componentDidUpdate第三个参数
-  getSnapshotBeforeUpdate() {
+  getSnapshotBeforeUpdate(prevProps, prevState) {
     return this.ref.current.scrollHeight;
   }
   componentWillMount() {
@@ -109,5 +110,17 @@ class FunctionClass extends React.Component {
     );
   }
 }
+function TestHook() {
+  const [number, setNumber] = React.useState(0);
+  return (
+    <div
+      onClick={() => {
+        setNumber(number + 1);
+      }}
+    >
+      {number}
+    </div>
+  );
+}
 // 核心渲染方法
-ReactDOM.render(<ContextTypeClass />, document.getElementById("root"));
+ReactDOM.render(<TestHook />, document.getElementById("root"));

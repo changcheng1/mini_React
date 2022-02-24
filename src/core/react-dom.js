@@ -1,9 +1,15 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-19 21:55:04
+ * @LastEditTime: 2022-02-23 23:40:35
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
+// 全局变量存放所有的状态
+let hookStates = [];
+// hook索引，表示当前的hook
+let hookIndex = 0;
+// Hook setState更新逻辑
+let scheduleUpdate;
 // 1.把Vdom虚拟dom变成真实Dom
 // 2.把虚拟Dom上的属性更新或者同步到Dom上
 // 3.把此虚拟Dom的儿子变成真实的Dom挂载到自己的dom上，dom.appendChild
@@ -14,6 +20,12 @@ import { addEvent } from "./event";
  * @param {*} container 要把虚拟Dom转成真实dom并插入到那个容器里面去
  */
 function render(vdom, container) {
+  mount(vdom, container);
+  scheduleUpdate = () => {
+    compareTwoVdom(container, vdom, vdom);
+  };
+}
+function mount(vdom, container) {
   let dom = createDom(vdom);
   container.appendChild(dom);
   // 执行挂载完成函数，因为在挂载组件的时候添加了此属性
@@ -44,7 +56,7 @@ export function createDom(vdom) {
   }
   updateProps(dom, {}, props); // 使用虚拟Dom的属性更新刚创建出来的真实Dom的属性
   if (typeof props.children === "object" && props.children.type) {
-    render(props.children, dom); // 当前的元素和当前元素的父级传入
+    mount(props.children, dom); // 当前的元素和当前元素的父级传入
     // 如果是个数组，说明儿子不止一个
   } else if (Array.isArray(props.children)) {
     reconcileChildren(props.children, dom); // reconcileChildren:融合
@@ -87,7 +99,7 @@ function updateProps(dom, oldProps, newProps) {
 function reconcileChildren(childrenVdom, parentDom) {
   for (let i = 0; i < childrenVdom.length; i++) {
     let childDom = childrenVdom[i];
-    render(childDom, parentDom);
+    mount(childDom, parentDom);
   }
 }
 /**
@@ -276,6 +288,16 @@ export function findDOM(vdom) {
     dom = vdom.dom;
   }
   return dom;
+}
+export function useState(initState) {
+  hookStates[hookIndex] = hookStates[hookIndex] || initState;
+  // 新定义一个变量currentIndex，用来记录是第几次调用，后续用来更新
+  let currentIndex = hookIndex;
+  function setState(newState) {
+    hookStates[currentIndex] = newState;
+    scheduleUpdate(); // 调度更新函数组件
+  }
+  return [hookStates[hookIndex++], setState];
 }
 // eslint-disable-next-line import/no-anonymous-default-export
 const ReactDOM = {

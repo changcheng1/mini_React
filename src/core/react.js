@@ -1,8 +1,8 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-23 23:23:37
+ * @LastEditTime: 2022-02-26 22:48:06
  */
-import Component from "./component";
+import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
 import { useState } from "./react-dom";
 /**
@@ -83,5 +83,12 @@ const React = {
     return { ...oldElement, props };
   },
   useState,
+  memo: (FunctionComponent) => {
+    return class extends PureComponent {
+      render() {
+        return <FunctionComponent {...props} />;
+      }
+    };
+  },
 };
 export default React;

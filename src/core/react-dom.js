@@ -1,35 +1,68 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-23 23:40:35
+ * @LastEditTime: 2022-02-26 23:14:13
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
-// 全局变量存放所有的状态
+// 存放useState
 let hookStates = [];
-// hook索引，表示当前的hook
+// 当前第几个useState
 let hookIndex = 0;
-// Hook setState更新逻辑
 let scheduleUpdate;
-// 1.把Vdom虚拟dom变成真实Dom
-// 2.把虚拟Dom上的属性更新或者同步到Dom上
-// 3.把此虚拟Dom的儿子变成真实的Dom挂载到自己的dom上，dom.appendChild
-// 4.把自己挂载到容器上
 /**
- * render方法才是真的挂载
+ * 根容器挂载的时候，执行render方法
  * @param {*} vdom  虚拟Dom
  * @param {*} container 要把虚拟Dom转成真实dom并插入到那个容器里面去
  */
 function render(vdom, container) {
   mount(vdom, container);
   scheduleUpdate = () => {
+    hookIndex = 0; //恢复0，因为函数组件调用初始不是0
+    //然后再进行虚拟DOM的比较更新，初次更新两个dom一样的
     compareTwoVdom(container, vdom, vdom);
   };
 }
-function mount(vdom, container) {
+// 缓存对象
+export function useMemo(factory, deps) {
+  if (hookStates[hookIndex]) {
+    let [lastMemo, lastDeps] = hookStates[hookIndex];
+    let same = deps.every((item, index) => item === lastDeps[index]);
+    if (same) {
+      //每一个hook都要占用一个索引
+      hookIndex++;
+      return lastMemo;
+    } else {
+      let newMemo = factory();
+      hookStates[hookIndex++] = [newMemo, deps];
+      return newMemo;
+    }
+  } else {
+    let newMemo = factory();
+    hookStates[hookIndex++] = [newMemo, deps];
+    return newMemo;
+  }
+}
+// 缓存函数
+export function useCallback(callback, deps) {
+  if (hookStates[hookIndex]) {
+    let [lastCallback, lastDeps] = hookStates[hookIndex];
+    let same = deps.every((item, index) => item === lastDeps[index]);
+    if (same) {
+      //每一个hook都要占用一个索引
+      hookIndex++;
+      return lastCallback;
+    } else {
+      hookStates[hookIndex++] = [callback, deps];
+      return callback;
+    }
+  } else {
+    hookStates[hookIndex++] = [callback, deps];
+    return callback;
+  }
+}
+export function mount(vdom, container) {
   let dom = createDom(vdom);
   container.appendChild(dom);
-  // 执行挂载完成函数，因为在挂载组件的时候添加了此属性
-  dom.componentDidMount && dom.componentDidMount();
 }
 /**
  * 根据虚拟dom创建真实Dom
@@ -93,13 +126,13 @@ function updateProps(dom, oldProps, newProps) {
 }
 /**
  *
- * @param {*} childrenVdom  儿子们的虚拟Dom
- * @param {*} parentDom 父亲的真实Dom
+ * @param {*} childVdom  儿子们的虚拟Dom
+ * @param {*} parentDOM 父亲的真实Dom
  */
-function reconcileChildren(childrenVdom, parentDom) {
+function reconcileChildren(childrenVdom, parentDOM) {
   for (let i = 0; i < childrenVdom.length; i++) {
-    let childDom = childrenVdom[i];
-    mount(childDom, parentDom);
+    let childVdom = childrenVdom[i];
+    mount(childVdom, parentDOM);
   }
 }
 /**
@@ -145,7 +178,8 @@ function mountClassComponent(vdom) {
   let dom = createDom(oldRenderVdom); // 渲染真实的dom
   // 判断是否有挂载完成的方法
   if (classInstance.componentDidMount) {
-    dom.componentDidMount = classInstance.componentDidMount.bind(classInstance);
+    classInstance.componentDidMount();
+    // dom.componentDidMount = classInstance.componentDidMount.bind(classInstance);
   }
   return dom;
 }
@@ -179,6 +213,10 @@ export function compareTwoVdom(parentDom, oldVdom, newVdom, nextDom) {
     } else {
       parentDom.appendChild(newDom);
     }
+    //在这里执行新的虚拟DOM节点的DidMount事件
+    if (newVdom.classInstance && newVdom.classInstance.componentDidMount) {
+      newVdom.classInstance.componentDidMount();
+    }
     return newVdom;
     // 老的有，新的也有，但是类型不一样
   } else if (oldVdom && newVdom && oldVdom.type !== newVdom.type) {
@@ -188,6 +226,10 @@ export function compareTwoVdom(parentDom, oldVdom, newVdom, nextDom) {
     /// 判断是类，如果有卸载方法就执行一下
     if (oldVdom.classInstance && oldVdom.classInstance.componentWillUnmount) {
       oldVdom.classInstance.componentWillUnmount();
+    }
+    //在这里执行新的虚拟DOM节点的DidMount事件
+    if (newVdom.classInstance && newVdom.classInstance.componentDidMount) {
+      newVdom.classInstance.componentDidMount();
     }
     // 新的有，老的有，并且类型一样，可以复用老的dom节点，不需要进行重建，进行深入的domDiff
     // 更新自己的属性，另外还要深度比较儿子们
@@ -289,11 +331,27 @@ export function findDOM(vdom) {
   }
   return dom;
 }
+// useState 不支持在if语句中使用，数组是有序的，这样会导致hoookIndex错乱
+// 同步才是hook的思维方式，每一次渲染都是一个独立的闭包，所以如果有setTimeout这种情况，以setTimeout最后一次执行为准
+// setTimeout(setNumber(number=>number+1))可以获取最近的数据
+// **目前版本的useState如果组件卸载会导致index错位，原版当中每一个组件都放在Fiber里，每个组件都有自己的hookStates和hookIndex，所以不会出问题
+// fiber的核心就是diff暂停，因为从根节点会整个遍历一遍
+/**
+ *
+ * @param {*} initState 可能是值有可能是函数，函数结果指定也是值
+ * @returns [state,setState]
+ */
 export function useState(initState) {
-  hookStates[hookIndex] = hookStates[hookIndex] || initState;
+  hookStates[hookIndex] =
+    hookStates[hookIndex] ||
+    (typeof initState === "function" ? initState() : initState);
   // 新定义一个变量currentIndex，用来记录是第几次调用，后续用来更新
   let currentIndex = hookIndex;
   function setState(newState) {
+    if (typeof newState === "function") {
+      // 解决setTimeout闭包的问题，获取最新的state
+      newState = newState(hookStates[currentIndex]);
+    }
     hookStates[currentIndex] = newState;
     scheduleUpdate(); // 调度更新函数组件
   }

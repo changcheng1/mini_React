@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-23 23:40:17
+ * @LastEditTime: 2022-02-26 20:35:08
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -113,12 +113,17 @@ class FunctionClass extends React.Component {
 function TestHook() {
   const [number, setNumber] = React.useState(0);
   return (
-    <div
-      onClick={() => {
-        setNumber(number + 1);
-      }}
-    >
-      {number}
+    <div>
+      <span>{number}</span>
+      <button
+        onClick={() => {
+          setTimeout(() => {
+            setNumber((number) => number + 1);
+          }, 3000);
+        }}
+      >
+        延时+1
+      </button>
     </div>
   );
 }

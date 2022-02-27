@@ -157,7 +157,7 @@ export class PureComponent extends Component {
  * @param {} obj1
  * @param {*} obj2
  */
-function Equal(obj1, obj2) {
+function shallowEqual(obj1, obj2) {
   if (obj1 === obj2)
     //如果引用地址是一样的，就相等.不关心属性变没变
     return true;

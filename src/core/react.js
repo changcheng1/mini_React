@@ -1,10 +1,10 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-26 22:48:06
+ * @LastEditTime: 2022-02-27 13:31:13
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
-import { useState } from "./react-dom";
+import { useState, useMemo, useCallback, useReducer } from "./react-dom";
 /**
  *
  * @param {*} type  当前元素的类型
@@ -86,9 +86,12 @@ const React = {
   memo: (FunctionComponent) => {
     return class extends PureComponent {
       render() {
-        return <FunctionComponent {...props} />;
+        return FunctionComponent(this.props);
       }
     };
   },
+  useMemo,
+  useCallback,
+  useReducer,
 };
 export default React;

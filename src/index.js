@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-26 20:35:08
+ * @LastEditTime: 2022-02-27 14:02:51
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -110,19 +110,45 @@ class FunctionClass extends React.Component {
     );
   }
 }
+function ChildrenFn(props) {
+  console.log("子组件渲染");
+  return <p>{props.status}</p>;
+}
+const ChildMemo = React.memo(ChildrenFn);
+function reducer(state, action) {
+  console.log("state");
+  switch (action.type) {
+    case "add":
+      return { number: state.number + 1 };
+      break;
+    case "minus":
+      return { number: state.number - 1 };
+      break;
+    default:
+      return state;
+      break;
+  }
+}
 function TestHook() {
   const [number, setNumber] = React.useState(0);
+  const [state, dispatch] = React.useReducer(reducer, { number: 1 });
   return (
     <div>
+      <span>{state.number}</span>
       <span>{number}</span>
       <button
         onClick={() => {
-          setTimeout(() => {
-            setNumber((number) => number + 1);
-          }, 3000);
+          dispatch({ type: "add" });
         }}
       >
-        延时+1
+        触发子组件
+      </button>
+      <button
+        onClick={() => {
+          setNumber(number + 1);
+        }}
+      >
+        增加number
       </button>
     </div>
   );

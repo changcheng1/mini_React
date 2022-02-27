@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-26 23:14:13
+ * @LastEditTime: 2022-02-27 14:01:28
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -21,44 +21,6 @@ function render(vdom, container) {
     //然后再进行虚拟DOM的比较更新，初次更新两个dom一样的
     compareTwoVdom(container, vdom, vdom);
   };
-}
-// 缓存对象
-export function useMemo(factory, deps) {
-  if (hookStates[hookIndex]) {
-    let [lastMemo, lastDeps] = hookStates[hookIndex];
-    let same = deps.every((item, index) => item === lastDeps[index]);
-    if (same) {
-      //每一个hook都要占用一个索引
-      hookIndex++;
-      return lastMemo;
-    } else {
-      let newMemo = factory();
-      hookStates[hookIndex++] = [newMemo, deps];
-      return newMemo;
-    }
-  } else {
-    let newMemo = factory();
-    hookStates[hookIndex++] = [newMemo, deps];
-    return newMemo;
-  }
-}
-// 缓存函数
-export function useCallback(callback, deps) {
-  if (hookStates[hookIndex]) {
-    let [lastCallback, lastDeps] = hookStates[hookIndex];
-    let same = deps.every((item, index) => item === lastDeps[index]);
-    if (same) {
-      //每一个hook都要占用一个索引
-      hookIndex++;
-      return lastCallback;
-    } else {
-      hookStates[hookIndex++] = [callback, deps];
-      return callback;
-    }
-  } else {
-    hookStates[hookIndex++] = [callback, deps];
-    return callback;
-  }
 }
 export function mount(vdom, container) {
   let dom = createDom(vdom);
@@ -336,26 +298,67 @@ export function findDOM(vdom) {
 // setTimeout(setNumber(number=>number+1))可以获取最近的数据
 // **目前版本的useState如果组件卸载会导致index错位，原版当中每一个组件都放在Fiber里，每个组件都有自己的hookStates和hookIndex，所以不会出问题
 // fiber的核心就是diff暂停，因为从根节点会整个遍历一遍
+// 缓存对象
+export function useMemo(factory, deps) {
+  if (hookStates[hookIndex]) {
+    let [lastMemo, lastDeps] = hookStates[hookIndex];
+    let same = deps.every((item, index) => item === lastDeps[index]);
+    if (same) {
+      //每一个hook都要占用一个索引
+      hookIndex++;
+      return lastMemo;
+    } else {
+      let newMemo = factory();
+      hookStates[hookIndex++] = [newMemo, deps];
+      return newMemo;
+    }
+  } else {
+    let newMemo = factory();
+    hookStates[hookIndex++] = [newMemo, deps];
+    return newMemo;
+  }
+}
+// 缓存函数
+export function useCallback(callback, deps) {
+  if (hookStates[hookIndex]) {
+    let [lastCallback, lastDeps] = hookStates[hookIndex];
+    let same = deps.every((item, index) => item === lastDeps[index]);
+    if (same) {
+      //每一个hook都要占用一个索引
+      hookIndex++;
+      return lastCallback;
+    } else {
+      hookStates[hookIndex++] = [callback, deps];
+      return callback;
+    }
+  } else {
+    hookStates[hookIndex++] = [callback, deps];
+    return callback;
+  }
+}
 /**
  *
  * @param {*} initState 可能是值有可能是函数，函数结果指定也是值
  * @returns [state,setState]
  */
 export function useState(initState) {
+  return useReducer(null, initState);
+}
+export function useReducer(reducer, initialState) {
+  //把老的值取出来，如果没有，就使用默认值
   hookStates[hookIndex] =
     hookStates[hookIndex] ||
-    (typeof initState === "function" ? initState() : initState);
-  // 新定义一个变量currentIndex，用来记录是第几次调用，后续用来更新
-  let currentIndex = hookIndex;
-  function setState(newState) {
-    if (typeof newState === "function") {
-      // 解决setTimeout闭包的问题，获取最新的state
-      newState = newState(hookStates[currentIndex]);
-    }
-    hookStates[currentIndex] = newState;
-    scheduleUpdate(); // 调度更新函数组件
+    (typeof initialState === "function" ? initialState() : initialState);
+  //新定义一个变量currentIndex
+  let currentIndex = hookIndex; //对于第一个useState的那个函数而言这个索不变的
+  function dispatch(action) {
+    // 根据参数判断是useState还是useReducer
+    hookStates[currentIndex] = reducer
+      ? reducer(hookStates[currentIndex], action)
+      : action;
+    scheduleUpdate(); //当状态改变后要重新更新应用
   }
-  return [hookStates[hookIndex++], setState];
+  return [hookStates[hookIndex++], dispatch];
 }
 // eslint-disable-next-line import/no-anonymous-default-export
 const ReactDOM = {

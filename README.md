@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-02-23 18:58:17
+ * @LastEditTime: 2022-02-27 14:59:14
 -->
 
 ### React jsx 语法基于 Babel 解析
@@ -43,7 +43,35 @@
 
 1. React 元素不可变,不可以改变元素类型，例如{type:h1}修改为{type:h2}，禁止修改对象属性 Object.freeze(object)，其实就是改变 writeable 属性为 false
 
-2. React 元素采用局部更新，只更新可变部分，domDiff
+2. React 元素采用局部更新，只更新可变部分，domDiff,但是问题是更新的话，React 也要从组件的根节点更新，vue 是发布订阅，可以实现真正的局部更新
+
+```javaScript
+// 经典发布订阅结构
+const list = [['国家大事',['小王']],['美女',['小常','小谢']]]
+class EventBus {
+  constructor() {
+    this.eventBus = new Map();
+  }
+  on(eventName, message) {
+    if (!this.eventBus.has(eventName)) {
+      this.eventBus.set(eventName, []);
+    }
+    this.eventBus.get(eventName).push(message);
+  }
+  emit(eventName) {
+    if (!this.eventBus.has(eventName)) return;
+    for (let i = 0; i < this.eventBus.get(eventName).length; i++) {
+      console.log(`${this.eventBus.get(eventName)[i]}收到${eventName}`);
+    }
+  }
+}
+let newEvent = new EventBus();
+newEvent.on("国家大事", "小王");
+newEvent.on("美女", "小常");
+newEvent.on("美女", "小谢");
+newEvent.emit("国家大事");
+newEvent.emit("美女");
+```
 
 ### 函数组件
 
@@ -85,7 +113,6 @@
         sthis.etState({number:this.state.number+1});
         console.log(this.state.number); // 4
     })
-
 ```
 
 ### 父与子组件生命周期执行顺序

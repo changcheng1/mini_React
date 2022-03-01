@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-27 13:31:13
+ * @LastEditTime: 2022-02-28 19:50:25
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
@@ -44,20 +44,18 @@ const React = {
   createRef: () => {
     return { current: null };
   },
-  createContext: (initValue) => {
-    Provider._value = initValue;
+  createContext: (initialValue = {}) => {
+    let context = { Provider, Consumer };
     function Provider(props) {
-      if (Provider._value) {
-        Object.assign(Provider._value, props.value);
-      } else {
-        Provider._value = props.value;
-      }
+      // babel会将value值传到私有属性_currentValue上
+      context._currentValue = context._currentValue || initialValue;
+      Object.assign(context._currentValue, props.value);
       return props.children;
     }
     function Consumer(props) {
-      return props.children(Provider._value);
+      return props.children(context._currentValue);
     }
-    return { Provider, Consumer };
+    return context;
   },
   cloneElement: (oldElement, newProps, ...newChildren) => {
     let children = oldElement.props.children;
@@ -79,7 +77,6 @@ const React = {
     }
     newProps.children = children;
     let props = { ...oldElement.props, ...newProps };
-    //oldElement type key ref props....
     return { ...oldElement, props };
   },
   useState,

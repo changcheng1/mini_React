@@ -1,11 +1,12 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-27 14:02:51
+ * @LastEditTime: 2022-02-28 19:00:35
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
 import { PureComponent } from "./core/component";
 import { ContextTypeClass } from "./component/ReactContext";
+const { Provider, Consumer } = React.createContext();
 // ReactDom会保证浏览器的Dom和React元素一致
 class ChildCounter extends React.Component {
   constructor(props) {
@@ -154,4 +155,4 @@ function TestHook() {
   );
 }
 // 核心渲染方法
-ReactDOM.render(<TestHook />, document.getElementById("root"));
+ReactDOM.render(<ContextTypeClass />, document.getElementById("root"));

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-03-01 21:35:44
+ * @LastEditTime: 2022-05-05 18:28:06
 -->
 
 ### React 源码解析
@@ -132,61 +132,6 @@ newEvent.emit("美女");
 ![avatar](./img/oldLifeCycle.png)
 
 <br/>
-
-```javaScript
-父组件 1.constructor 初始化属性和状态对象
-父组件 2.componentWillMount 组件将要挂载
-父组件 3.render 重新计算新的虚拟DOM
-子组件 1.componentWillMount 组件将要挂载
-子组件 2.render
-子组件 3.componentDidMount 组件挂载完成
-父组件 4.componentDidMount 组件挂载完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 4.componentWillReceiveProps 组件将要接收到新的属性
-子组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 7.componentDidUpdate 组件更新完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 6.componentWillUnmount 组件将要卸载
-父组件 7.componentDidUpdate 组件更新完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 1.componentWillMount 组件将要挂载
-子组件 2.render
-子组件 3.componentDidMount 组件挂载完成
-父组件 7.componentDidUpdate 组件更新完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 4.componentWillReceiveProps 组件将要接收到新的属性
-子组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 7.componentDidUpdate 组件更新完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 4.componentWillReceiveProps 组件将要接收到新的属性
-子组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 7.componentDidUpdate 组件更新完成
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 5.shouldComponentUpdate 决定组件是否需要更新?
-父组件 6.componentWillUpdate 组件将要更新
-父组件 3.render 重新计算新的虚拟DOM
-子组件 4.componentWillReceiveProps 组件将要接收到新的属性
-子组件 5.shouldComponentUpdate 决定组件是否需要更新?
-子组件 6.componentWillUpdate 组件将要更新
-子组件 2.render
-子组件 7.componentDidUpdate 组件更新完成
-父组件 7.componentDidUpdate 组件更新完成
-```
 
 ### react 新版生命周期
 

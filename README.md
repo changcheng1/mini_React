@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-05-05 18:28:06
+ * @LastEditTime: 2022-05-19 15:18:03
 -->
 
 ### React 源码解析
@@ -201,3 +201,7 @@ newEvent.emit("美女");
 https://mp.weixin.qq.com/s/Zi4spufaPxeZTMbjj_b55A
 
 ![avatar](./img/domDiff.jpeg)
+
+### 执行队列
+
+![avatar](./img/useLayoutEffect.png)

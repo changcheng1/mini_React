@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-27 14:01:28
+ * @LastEditTime: 2022-05-19 17:01:49
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -49,14 +49,16 @@ export function createDom(vdom) {
     // 否则就是原生组件
     dom = document.createElement(type);
   }
-  updateProps(dom, {}, props); // 使用虚拟Dom的属性更新刚创建出来的真实Dom的属性
-  if (typeof props.children === "object" && props.children.type) {
-    mount(props.children, dom); // 当前的元素和当前元素的父级传入
-    // 如果是个数组，说明儿子不止一个
-  } else if (Array.isArray(props.children)) {
-    reconcileChildren(props.children, dom); // reconcileChildren:融合
-  } else {
-    document.textContent = props.children ? props.children.toString() : "";
+  if (props) {
+    updateProps(dom, {}, props); // 使用虚拟Dom的属性更新刚创建出来的真实Dom的属性
+    if (typeof props.children === "object" && props.children.type) {
+      mount(props.children, dom); // 当前的元素和当前元素的父级传入
+      // 如果是个数组，说明儿子不止一个
+    } else if (Array.isArray(props.children)) {
+      reconcileChildren(props.children, dom); // reconcileChildren:融合
+    } else {
+      document.textContent = props.children ? props.children.toString() : "";
+    }
   }
   vdom.dom = dom; // 当根据一个vdom创建出一个真实dom以后，真实dom挂载到vdom.dom的属性上
   if (ref) {
@@ -293,6 +295,63 @@ export function findDOM(vdom) {
   }
   return dom;
 }
+/**
+ * 为了保证此回调函数不是同步执行，而是在页面渲染完毕执行，包装到宏任务里
+ * @param {*} callBack 回调函数
+ * @param {*} dependencies 依赖
+ */
+export function useEffect(callBack, dependencies) {
+  if (hookStates[hookIndex]) {
+    let [destoryFunction, lastDependencies] = hookStates[hookIndex]; // 取出上一次的依赖进行比较
+    let allTheSame = dependencies.every(
+      (item, index) => item === lastDependencies[index]
+    ); // 每一项进行比较，确定是否有变化决定是否更新
+    if (allTheSame) {
+      // 如果都一样就不更新
+      hookIndex++;
+    } else {
+      destoryFunction && destoryFunction(); // 执行销毁副作用的函数
+      setTimeout(() => {
+        // 宏任务等待下一次更新
+        let destoryFunction = callBack();
+        hookStates[hookIndex++] = [destoryFunction, dependencies];
+      });
+    }
+  } else {
+    // 说明是第一次渲染，加上setTimeout，加入宏任务，在渲染之后再执行，宏任务
+    setTimeout(() => {
+      let destoryFunction = callBack();
+      hookStates[hookIndex++] = [destoryFunction, dependencies];
+    });
+  }
+}
+/**
+ * 几乎和useEffect一样，唯一区别是宏任务执行和微任务执行，堵塞不堵塞的区别,一般用来做拖拽之类的，快速更新
+ * useEffect不会阻塞浏览器渲染，而useLayoutEffect会阻塞浏览器渲染
+ * useEffect会在浏览器渲染结束后执行，而useLayoutEffect则在dom更新完成，浏览器回执执行执行
+ */
+export function useLayoutEffect(callBack, dependencies) {
+  if (hookStates[hookIndex]) {
+    let [destoryFunction, lastDependencies] = hookStates[hookIndex]; // 取出上一次的依赖进行比较
+    let allTheSame = dependencies.every(
+      (item, index) => item === lastDependencies[index]
+    );
+    if (allTheSame) {
+      hookIndex++;
+    } else {
+      destoryFunction && destoryFunction(); // 执行销毁副作用的函数
+      queueMicrotask(() => {
+        let destoryFunction = callBack();
+        hookStates[hookIndex++] = [destoryFunction, dependencies];
+      });
+    }
+  } else {
+    queueMicrotask(() => {
+      let destoryFunction = callBack();
+      hookStates[hookIndex++] = [destoryFunction, dependencies];
+    });
+  }
+}
 // useState 不支持在if语句中使用，数组是有序的，这样会导致hoookIndex错乱
 // 同步才是hook的思维方式，每一次渲染都是一个独立的闭包，所以如果有setTimeout这种情况，以setTimeout最后一次执行为准
 // setTimeout(setNumber(number=>number+1))可以获取最近的数据
@@ -302,8 +361,8 @@ export function findDOM(vdom) {
 export function useMemo(factory, deps) {
   if (hookStates[hookIndex]) {
     let [lastMemo, lastDeps] = hookStates[hookIndex];
-    let same = deps.every((item, index) => item === lastDeps[index]);
-    if (same) {
+    let allTheSame = deps.every((item, index) => item === lastDeps[index]);
+    if (allTheSame) {
       //每一个hook都要占用一个索引
       hookIndex++;
       return lastMemo;
@@ -322,8 +381,8 @@ export function useMemo(factory, deps) {
 export function useCallback(callback, deps) {
   if (hookStates[hookIndex]) {
     let [lastCallback, lastDeps] = hookStates[hookIndex];
-    let same = deps.every((item, index) => item === lastDeps[index]);
-    if (same) {
+    let allTheSame = deps.every((item, index) => item === lastDeps[index]);
+    if (allTheSame) {
       //每一个hook都要占用一个索引
       hookIndex++;
       return lastCallback;
@@ -349,16 +408,32 @@ export function useReducer(reducer, initialState) {
   hookStates[hookIndex] =
     hookStates[hookIndex] ||
     (typeof initialState === "function" ? initialState() : initialState);
-  //新定义一个变量currentIndex
-  let currentIndex = hookIndex; //对于第一个useState的那个函数而言这个索不变的
+  let currentIndex = hookIndex; //闭包，用来确定当前是哪个
   function dispatch(action) {
-    // 根据参数判断是useState还是useReducer
-    hookStates[currentIndex] = reducer
-      ? reducer(hookStates[currentIndex], action)
-      : action;
+    let lastState = hookStates[currentIndex]; //获取老状态
+    let nextState;
+    if (typeof action === "function") {
+      // useState可以传入函数 setState(state=>{num:state.num+1})
+      nextState = action(lastState);
+    } else {
+      nextState = action; // 直接赋值
+    }
+    if (reducer) {
+      nextState = reducer(lastState, action); // 说明是useReducer方法
+    }
+    hookStates[currentIndex] = nextState;
     scheduleUpdate(); //当状态改变后要重新更新应用
   }
   return [hookStates[hookIndex++], dispatch];
+}
+/**
+ *  获取dom真实的dom节点
+ * @param {*} initState
+ * @returns
+ */
+export function useRef(initState) {
+  hookStates[hookIndex] = hookStates[hookIndex] || { current: initState };
+  return hookStates[hookIndex++];
 }
 // eslint-disable-next-line import/no-anonymous-default-export
 const ReactDOM = {

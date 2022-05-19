@@ -1,10 +1,17 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-28 19:50:25
+ * @LastEditTime: 2022-05-19 16:53:56
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
-import { useState, useMemo, useCallback, useReducer } from "./react-dom";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useReducer,
+  useEffect,
+  useRef,
+} from "./react-dom";
 /**
  *
  * @param {*} type  当前元素的类型
@@ -79,7 +86,6 @@ const React = {
     let props = { ...oldElement.props, ...newProps };
     return { ...oldElement, props };
   },
-  useState,
   memo: (FunctionComponent) => {
     return class extends PureComponent {
       render() {
@@ -90,5 +96,8 @@ const React = {
   useMemo,
   useCallback,
   useReducer,
+  useEffect,
+  useRef,
+  useState,
 };
 export default React;

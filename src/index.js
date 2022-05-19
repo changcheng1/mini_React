@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-02-28 19:00:35
+ * @LastEditTime: 2022-05-19 17:01:12
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -116,8 +116,8 @@ function ChildrenFn(props) {
   return <p>{props.status}</p>;
 }
 const ChildMemo = React.memo(ChildrenFn);
+
 function reducer(state, action) {
-  console.log("state");
   switch (action.type) {
     case "add":
       return { number: state.number + 1 };
@@ -131,12 +131,25 @@ function reducer(state, action) {
   }
 }
 function TestHook() {
-  const [number, setNumber] = React.useState(0);
+  const ref = React.useRef();
+  const [count, setCount] = React.useState({
+    num: 1,
+  });
   const [state, dispatch] = React.useReducer(reducer, { number: 1 });
+  // React.useEffect(() => {
+  //   let timer = setInterval(() => {
+  //     setCount({
+  //       num: count.num++,
+  //     });
+  //   }, 1000);
+  //   return () => {
+  //     console.log("组件卸载");
+  //     clearInterval(timer);
+  //   };
+  // }, []);
   return (
     <div>
-      <span>{state.number}</span>
-      <span>{number}</span>
+      <span ref={ref}>{state.number}</span>
       <button
         onClick={() => {
           dispatch({ type: "add" });
@@ -146,13 +159,19 @@ function TestHook() {
       </button>
       <button
         onClick={() => {
-          setNumber(number + 1);
+          console.log("ref", ref);
+          setCount((lastState) => {
+            return {
+              num: lastState.num + 1,
+            };
+          });
         }}
       >
         增加number
       </button>
+      <span>{count.num}</span>
     </div>
   );
 }
 // 核心渲染方法
-ReactDOM.render(<ContextTypeClass />, document.getElementById("root"));
+ReactDOM.render(<TestHook />, document.getElementById("root"));

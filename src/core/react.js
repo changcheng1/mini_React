@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-19 16:53:56
+ * @LastEditTime: 2022-05-27 14:43:40
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
@@ -90,6 +90,20 @@ const React = {
     return class extends PureComponent {
       render() {
         return FunctionComponent(this.props);
+      }
+    };
+  },
+  forwardRef: (FunctionComponent) => {
+    return class extends Component {
+      render() {
+        //this好像类的实例
+        if (FunctionComponent.length < 2) {
+          console.error(
+            `forwardRef render functions accept exactly two parameters: props and ref. Did you forget to use the ref parameter?`
+          );
+        }
+        console.log("this", this);
+        return FunctionComponent(this.props, this.ref);
       }
     };
   },

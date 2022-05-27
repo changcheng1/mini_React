@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-19 17:01:49
+ * @LastEditTime: 2022-05-27 14:39:56
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -61,8 +61,11 @@ export function createDom(vdom) {
     }
   }
   vdom.dom = dom; // 当根据一个vdom创建出一个真实dom以后，真实dom挂载到vdom.dom的属性上
+  console.log("ref", ref);
   if (ref) {
+    // 如果有ref属性
     ref.current = dom;
+    console.log("ref", ref);
   }
   return dom;
 }
@@ -116,9 +119,10 @@ function mountFunctionComponent(vdom) {
  */
 function mountClassComponent(vdom) {
   // 结构类的定义和类的属性对象
-  let { type, props } = vdom;
+  let { type, props, ref } = vdom;
   // 创建类的实例
   const classInstance = new type(props);
+  if (ref) classInstance.ref = ref; //如果虚拟DOm身上有REF属性，那么就赋给类的实例
   // 获取provider中的value属性，给类的context赋值
   if (type.contextType) {
     classInstance.context = type.contextType.Provider._value;
@@ -428,11 +432,12 @@ export function useReducer(reducer, initialState) {
 }
 /**
  *  获取dom真实的dom节点
+ * 不能给函数组件加ref，因为函数组件执行完就销毁了，类组件可以，类组件有实例
  * @param {*} initState
  * @returns
  */
-export function useRef(initState) {
-  hookStates[hookIndex] = hookStates[hookIndex] || { current: initState };
+export function useRef(initialState) {
+  hookStates[hookIndex] = hookStates[hookIndex] || { current: initialState };
   return hookStates[hookIndex++];
 }
 // eslint-disable-next-line import/no-anonymous-default-export

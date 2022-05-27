@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-19 17:01:12
+ * @LastEditTime: 2022-05-27 14:41:08
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -149,7 +149,7 @@ function TestHook() {
   // }, []);
   return (
     <div>
-      <span ref={ref}>{state.number}</span>
+      <input ref={ref} />
       <button
         onClick={() => {
           dispatch({ type: "add" });
@@ -159,7 +159,7 @@ function TestHook() {
       </button>
       <button
         onClick={() => {
-          console.log("ref", ref);
+          ref.current.focus();
           setCount((lastState) => {
             return {
               num: lastState.num + 1,
@@ -173,5 +173,22 @@ function TestHook() {
     </div>
   );
 }
+function ChildRef(props, childRef) {
+  return <input ref={childRef} />;
+}
+let ChildComponent = React.forwardRef(ChildRef);
+function Parent() {
+  const childRef = React.useRef();
+  const getFocus = () => {
+    childRef.current.focus();
+  };
+  return (
+    <div>
+      <ChildComponent ref={childRef} />
+      <button onClick={getFocus}>点击</button>
+    </div>
+  );
+}
+
 // 核心渲染方法
-ReactDOM.render(<TestHook />, document.getElementById("root"));
+ReactDOM.render(<Parent />, document.getElementById("root"));

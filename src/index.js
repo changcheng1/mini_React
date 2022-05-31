@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-27 14:41:08
+ * @LastEditTime: 2022-05-31 16:16:41
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -130,23 +130,22 @@ function reducer(state, action) {
       break;
   }
 }
+function Counter(props) {
+  React.useEffect(() => {
+    console.log("组件挂载或者更新");
+    return () => {
+      console.log("组件卸载");
+    };
+  }, [props.number]);
+  return (
+    <div>
+      <p>{props.number}</p>
+    </div>
+  );
+}
 function TestHook() {
   const ref = React.useRef();
-  const [count, setCount] = React.useState({
-    num: 1,
-  });
-  const [state, dispatch] = React.useReducer(reducer, { number: 1 });
-  // React.useEffect(() => {
-  //   let timer = setInterval(() => {
-  //     setCount({
-  //       num: count.num++,
-  //     });
-  //   }, 1000);
-  //   return () => {
-  //     console.log("组件卸载");
-  //     clearInterval(timer);
-  //   };
-  // }, []);
+  const [count, setCount] = React.useState(1);
   return (
     <div>
       <input ref={ref} />
@@ -159,28 +158,29 @@ function TestHook() {
       </button>
       <button
         onClick={() => {
-          ref.current.focus();
-          setCount((lastState) => {
-            return {
-              num: lastState.num + 1,
-            };
-          });
+          setCount(count + 1);
         }}
       >
         增加number
       </button>
-      <span>{count.num}</span>
+      <Counter number={count} />
     </div>
   );
 }
 function ChildRef(props, childRef) {
-  return <input ref={childRef} />;
+  let inputRef = React.createRef();
+  React.useImperativeHandle(childRef, () => ({
+    alertFn() {
+      console.log("1");
+    },
+  }));
+  return <input ref={inputRef} />;
 }
 let ChildComponent = React.forwardRef(ChildRef);
 function Parent() {
   const childRef = React.useRef();
   const getFocus = () => {
-    childRef.current.focus();
+    childRef.current.alertFn();
   };
   return (
     <div>
@@ -191,4 +191,4 @@ function Parent() {
 }
 
 // 核心渲染方法
-ReactDOM.render(<Parent />, document.getElementById("root"));
+ReactDOM.render(<TestHook />, document.getElementById("root"));

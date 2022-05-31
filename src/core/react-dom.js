@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-27 14:39:56
+ * @LastEditTime: 2022-05-31 16:57:19
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -172,6 +172,11 @@ export function compareTwoVdom(parentDom, oldVdom, newVdom, nextDom) {
     if (oldVdom.classInstance && oldVdom.componentWillUnmount) {
       oldVdom.componentWillUnmount();
     }
+    if (hookStates[hookIndex]) {
+      // 执行销毁逻辑
+      let [destoryFunction, dependencies] = hookStates[hookIndex];
+      destoryFunction && destoryFunction();
+    }
     return null;
     // 如果老的是个null，新的有值，新建DOM节点并且插入
   } else if (!oldVdom && newVdom) {
@@ -194,6 +199,11 @@ export function compareTwoVdom(parentDom, oldVdom, newVdom, nextDom) {
     /// 判断是类，如果有卸载方法就执行一下
     if (oldVdom.classInstance && oldVdom.classInstance.componentWillUnmount) {
       oldVdom.classInstance.componentWillUnmount();
+    }
+    if (hookStates[hookIndex]) {
+      // 执行销毁逻辑
+      let [destoryFunction, dependencies] = hookStates[hookIndex];
+      destoryFunction && destoryFunction();
     }
     //在这里执行新的虚拟DOM节点的DidMount事件
     if (newVdom.classInstance && newVdom.classInstance.componentDidMount) {
@@ -299,12 +309,14 @@ export function findDOM(vdom) {
   }
   return dom;
 }
-/**
+/** useEffect函数是在组件挂载之后和更新之后执行的
+ *  useEffect返回一个销毁函数
  * 为了保证此回调函数不是同步执行，而是在页面渲染完毕执行，包装到宏任务里
  * @param {*} callBack 回调函数
  * @param {*} dependencies 依赖
  */
 export function useEffect(callBack, dependencies) {
+  console.log("dependencies", dependencies);
   if (hookStates[hookIndex]) {
     let [destoryFunction, lastDependencies] = hookStates[hookIndex]; // 取出上一次的依赖进行比较
     let allTheSame = dependencies.every(
@@ -400,7 +412,7 @@ export function useCallback(callback, deps) {
   }
 }
 /**
- *
+ * 解决函数组件没有状态的问题
  * @param {*} initState 可能是值有可能是函数，函数结果指定也是值
  * @returns [state,setState]
  */
@@ -432,7 +444,10 @@ export function useReducer(reducer, initialState) {
 }
 /**
  *  获取dom真实的dom节点
- * 不能给函数组件加ref，因为函数组件执行完就销毁了，类组件可以，类组件有实例
+ *  可以给类组件，ref.current=类组件的实例
+ *  可以给原生组件，ref.current=原生组件对应的真实dom元素
+ *  可以给forward后的函数组件添加ref属性，ref.current=取决于把ref给谁
+ *  不可以给函数，因为函数执行会被销毁
  * @param {*} initState
  * @returns
  */

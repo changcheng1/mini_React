@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-27 14:43:40
+ * @LastEditTime: 2022-05-28 16:14:15
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
@@ -94,9 +94,10 @@ const React = {
     };
   },
   forwardRef: (FunctionComponent) => {
+    // 将ref从父组件转发到函数组件的dom元素上，子组件接收props和ref作为参数
     return class extends Component {
       render() {
-        //this好像类的实例
+        // 判断是否有prop和ref参数
         if (FunctionComponent.length < 2) {
           console.error(
             `forwardRef render functions accept exactly two parameters: props and ref. Did you forget to use the ref parameter?`
@@ -106,6 +107,10 @@ const React = {
         return FunctionComponent(this.props, this.ref);
       }
     };
+  },
+  useImperativeHandle: (ref, factory) => {
+    // 可以让你在使用ref时，自定义暴露给父组件的实例值，选择性暴露
+    ref.current = factory();
   },
   useMemo,
   useCallback,

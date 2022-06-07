@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-31 16:57:19
+ * @LastEditTime: 2022-06-06 16:33:48
  */
 import { REACT_TEXT } from "../constants";
 import { addEvent } from "./event";
@@ -448,6 +448,7 @@ export function useReducer(reducer, initialState) {
  *  可以给原生组件，ref.current=原生组件对应的真实dom元素
  *  可以给forward后的函数组件添加ref属性，ref.current=取决于把ref给谁
  *  不可以给函数，因为函数执行会被销毁
+ *  很方便的保存任何可变值
  * @param {*} initState
  * @returns
  */

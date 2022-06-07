@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-05-28 16:14:15
+ * @LastEditTime: 2022-06-06 16:32:50
  */
 import Component, { PureComponent } from "./component";
 import { wrapToVdom } from "../utils";
@@ -109,7 +109,7 @@ const React = {
     };
   },
   useImperativeHandle: (ref, factory) => {
-    // 可以让你在使用ref时，自定义暴露给父组件的实例值，选择性暴露
+    // useImperativeHandle要配合forwardRef一起使用，useImperativeHandle可以在使用ref的时候暴露给父组件的实例值，添加方法
     ref.current = factory();
   },
   useMemo,

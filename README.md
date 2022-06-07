@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-05-19 15:18:03
+ * @LastEditTime: 2022-06-07 11:44:09
 -->
 
 ### React 源码解析
@@ -195,6 +195,8 @@ newEvent.emit("美女");
     }
   }
 ```
+
+### Fiber
 
 ### domDiff
 

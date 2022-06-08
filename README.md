@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-06-07 11:44:09
+ * @LastEditTime: 2022-06-08 10:48:46
 -->
 
 ### React 源码解析
@@ -198,9 +198,105 @@ newEvent.emit("美女");
 
 ### Fiber
 
-### domDiff
+![avatar](./img/fiberFlow.png)
 
-https://mp.weixin.qq.com/s/Zi4spufaPxeZTMbjj_b55A
+Fiber 基于 requestAnimationFroma(宏任务) 和 MessageChanle(宏任务) 目前的做法是使用链表，每个虚拟节点内部表示一个 Fiber
+
+- requestAnimationFroma 用来替代 setTimeout，按帧执行，可以根据刷新率决定执行时间，隐藏不可见状态，不进行重绘和回流,减少 cpu 和 gpu 用量，高优先级
+
+```javaScript
+
+    <div style="background: blue; width: 0; height: 40px"></div>
+    <button>开始</button>
+
+    var div = document.querySelector("div");
+    var button = document.querySelector("button");
+    let startTime;
+    function progress() {
+      div.style.width = div.offsetWidth + 1 + "px";
+      if (div.offsetWidth < 100) {
+        console.log(Date.now() - startTime); // 16ms左右，较稳定 1000ms/60hz
+        startTime = Date.now();
+        requestAnimationFrame(progress);
+        // 浏览器刷新间隔会执行requestAnimationFrame，根据系统的刷新频率决定，
+        // 节省系统资源，改变视觉效果，用来替代setTimeout,属于高优先级任务
+      }
+    }
+    button.onclick = () => {
+      startTime = Date.now();
+      requestAnimationFrame(progress);
+    };
+```
+
+- requestIdleCallback(宏任务) 用来控制任务单元，利用浏览器空余时间进行任务调度,低优先级 **只有 chrome 支持**,React 利用 MessageChannel(宏任务，MessageChannel 的 postMessage 的方法也是宏任务) 模拟了 requestIdleCallBack,将回调延迟到绘制操作之后执行
+
+```javaScript
+    // MessageChannel就两个端口互相传递消息，用于iframe通信
+    var channel = new MessageChannel();
+    let port1 = channel.port1;
+    let port2 = channel.port2;
+    port1.onmessage = ({ data }) => {
+      console.log("port1 msg", data);
+    };
+    port2.onmessage = ({ data }) => {
+      console.log("port2 msg", data);
+    };
+    port1.postMessage("给Port2传递的消息");
+    port2.postMessage("给Port1传递的消息");
+```
+
+![avatar](./img/fiberConstructor.png)
+
+模拟嵌套节点的情况
+
+A1 嵌套 B1，B2
+
+```javaScript
+    function sleep(duration) {
+      let time = Date.now();
+      while (duration + time > Date.now()) {}
+    }
+    let works = [
+      () => {
+        console.log("A1开始");
+        sleep(30); // 挂起20ms
+        console.log("A1结束");
+      },
+      () => {
+        console.log("B1开始");
+        console.log("B1结束");
+      },
+      () => {
+        console.log("B2开始");
+        console.log("B2结束");
+      },
+    ];
+    // 告诉浏览器有空闲时间执行任务，但是如果已经过期，不管有没有空，都帮我执行
+    requestIdleCallback(workLoop, { timeout: 1000 });
+    function workLoop(deadLine) {
+      console.log("本帧剩余时间ms", parseInt(deadLine.timeRemaining()));
+      // 如果有剩余时间或者过期了
+      while (
+        (deadLine.timeRemaining() > 0 || deadLine.timeout) &&
+        works.length > 0
+      ) {
+        performUnitWord();
+      }
+      if (works.length > 0) {
+        // 返回当前帧的剩余秒数
+        console.log(
+          `只剩下${deadLine.timeRemaining()},时间片已经到期了，等待下次调度`
+        );
+        requestIdleCallback(workLoop);
+      }
+    }
+    function performUnitWord() {
+      let work = works.shift();
+      work();
+    }
+```
+
+### domDiff
 
 ![avatar](./img/domDiff.jpeg)
 

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-06-08 10:48:46
+ * @LastEditTime: 2022-06-08 16:14:52
 -->
 
 ### React 源码解析
@@ -200,56 +200,21 @@ newEvent.emit("美女");
 
 ![avatar](./img/fiberFlow.png)
 
-Fiber 基于 requestAnimationFroma(宏任务) 和 MessageChanle(宏任务) 目前的做法是使用链表，每个虚拟节点内部表示一个 Fiber
+Fiber 基于 requestAnimationFrame(宏任务) 和 MessageChanle(宏任务) 目前的做法是使用链表，每个虚拟节点内部表示一个 Fiber
 
-- requestAnimationFroma 用来替代 setTimeout，按帧执行，可以根据刷新率决定执行时间，隐藏不可见状态，不进行重绘和回流,减少 cpu 和 gpu 用量，高优先级
+#### Fiber 执行阶段
 
-```javaScript
+1.协调阶段：可以认为是 dom diff 阶段，这个阶段可以被中断，这个阶段找出所有的节点变更，例如节点新增，删除，属性变更，这些变更 Rect 称之为副作用(effect)
 
-    <div style="background: blue; width: 0; height: 40px"></div>
-    <button>开始</button>
+2.提交阶段：将上一个阶段计算出来的需要处理的 effect 一次性执行，这个阶段必须同步，不能被打断
 
-    var div = document.querySelector("div");
-    var button = document.querySelector("button");
-    let startTime;
-    function progress() {
-      div.style.width = div.offsetWidth + 1 + "px";
-      if (div.offsetWidth < 100) {
-        console.log(Date.now() - startTime); // 16ms左右，较稳定 1000ms/60hz
-        startTime = Date.now();
-        requestAnimationFrame(progress);
-        // 浏览器刷新间隔会执行requestAnimationFrame，根据系统的刷新频率决定，
-        // 节省系统资源，改变视觉效果，用来替代setTimeout,属于高优先级任务
-      }
-    }
-    button.onclick = () => {
-      startTime = Date.now();
-      requestAnimationFrame(progress);
-    };
-```
+A1 嵌套 B1，B2，B1 里嵌套 C1，C2
 
-- requestIdleCallback(宏任务) 用来控制任务单元，利用浏览器空余时间进行任务调度,低优先级 **只有 chrome 支持**,React 利用 MessageChannel(宏任务，MessageChannel 的 postMessage 的方法也是宏任务) 模拟了 requestIdleCallBack,将回调延迟到绘制操作之后执行
+A1->B1->C1->C2->B2 深度优先
 
-```javaScript
-    // MessageChannel就两个端口互相传递消息，用于iframe通信
-    var channel = new MessageChannel();
-    let port1 = channel.port1;
-    let port2 = channel.port2;
-    port1.onmessage = ({ data }) => {
-      console.log("port1 msg", data);
-    };
-    port2.onmessage = ({ data }) => {
-      console.log("port2 msg", data);
-    };
-    port1.postMessage("给Port2传递的消息");
-    port2.postMessage("给Port1传递的消息");
-```
-
-![avatar](./img/fiberConstructor.png)
+![avatar](./img/fiberAnverse.png)
 
 模拟嵌套节点的情况
-
-A1 嵌套 B1，B2
 
 ```javaScript
     function sleep(duration) {
@@ -295,6 +260,52 @@ A1 嵌套 B1，B2
       work();
     }
 ```
+
+requestAnimationFrame 用来替代 setTimeout，按帧执行，可以根据刷新率决定执行时间，隐藏不可见状态，不进行重绘和回流,减少 cpu 和 gpu 用量，高优先级
+
+```javaScript
+
+    <div style="background: blue; width: 0; height: 40px"></div>
+    <button>开始</button>
+
+    var div = document.querySelector("div");
+    var button = document.querySelector("button");
+    let startTime;
+    function progress() {
+      div.style.width = div.offsetWidth + 1 + "px";
+      if (div.offsetWidth < 100) {
+        console.log(Date.now() - startTime); // 16ms左右，较稳定 1000ms/60hz
+        startTime = Date.now();
+        requestAnimationFrame(progress);
+        // 浏览器刷新间隔会执行requestAnimationFrame，根据系统的刷新频率决定，
+        // 节省系统资源，改变视觉效果，用来替代setTimeout,属于高优先级任务
+      }
+    }
+    button.onclick = () => {
+      startTime = Date.now();
+      requestAnimationFrame(progress);
+    };
+
+```
+
+requestIdleCallback(宏任务) 用来控制任务单元，利用浏览器空余时间进行任务调度,低优先级 **只有 chrome 支持**,React 利用 MessageChannel(宏任务，MessageChannel 的 postMessage 的方法也是宏任务,在浏览器渲染之后执行) 模拟了 requestIdleCallBack,将回调延迟到绘制操作之后执行
+
+```javaScript
+    // MessageChannel就两个端口互相传递消息，用于iframe通信
+    var channel = new MessageChannel();
+    let port1 = channel.port1;
+    let port2 = channel.port2;
+    port1.onmessage = ({ data }) => {
+      console.log("port1 msg", data);
+    };
+    port2.onmessage = ({ data }) => {
+      console.log("port2 msg", data);
+    };
+    port1.postMessage("给Port2传递的消息");
+    port2.postMessage("给Port1传递的消息");
+```
+
+![avatar](./img/fiberConstructor.png)
 
 ### domDiff
 

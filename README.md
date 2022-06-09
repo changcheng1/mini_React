@@ -1,87 +1,64 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-06-08 16:14:52
+ * @LastEditTime: 2022-06-09 10:48:00
 -->
 
-### React 源码解析
+## React 源码实现
 
 <br/>
 
-![avatar](./img/1.png)
+## 📦 安装依赖
 
-```javaScript
-
-// 真实Dom
- <div className="box" style={{color:'red'}}>
-  <span>1</span>
-  <p>2</p>
-</div>
-
-// 转换结果
- {
-  type:"div",
-  props:{
-    className:"box"
-  },
-  children:[{
-    type:"span",
-    props:{
-      style:{
-        color:"red"
-      },
-      children:"hello"
-    },
-  },{
-    type:"p",
-    props:null,
-    children:"2"
-  }]
-}
+```shell
+npm i
 ```
 
-### React
+## ⌨️ 运行：
 
-1. React 元素不可变,不可以改变元素类型，例如{type:h1}修改为{type:h2}，禁止修改对象属性 Object.freeze(object)，其实就是改变 writeable 属性为 false
-
-2. React 元素采用局部更新，只更新可变部分，domDiff,但是问题是更新的话，React 也要从组件的根节点更新，vue 是发布订阅，可以实现真正的局部更新
-
-```javaScript
-// 经典发布订阅结构
-const list = [['国家大事',['小王']],['美女',['小常','小谢']]]
-class EventBus {
-  constructor() {
-    this.eventBus = new Map();
-  }
-  on(eventName, message) {
-    if (!this.eventBus.has(eventName)) {
-      this.eventBus.set(eventName, []);
-    }
-    this.eventBus.get(eventName).push(message);
-  }
-  emit(eventName) {
-    if (!this.eventBus.has(eventName)) return;
-    for (let i = 0; i < this.eventBus.get(eventName).length; i++) {
-      console.log(`${this.eventBus.get(eventName)[i]}收到${eventName}`);
-    }
-  }
-}
-let newEvent = new EventBus();
-newEvent.on("国家大事", "小王");
-newEvent.on("美女", "小常");
-newEvent.on("美女", "小谢");
-newEvent.emit("国家大事");
-newEvent.emit("美女");
+```shell
+ npm run dev
 ```
 
-### 函数组件
+## 基本 API 实现
 
-1. 自定义组件必须是首字母大写 原生组件小写开头，自定义组件大写字母开头
+|                     |
+| ------------------- |
+| createElement       |
+| createRef           |
+| createContext       |
+| memo                |
+| useMemo             |
+| useCallback         |
+| useReducer          |
+| useEffect           |
+| useRef              |
+| useState            |
+| PureComponent       |
+| useImperativeHandle |
+| 函数组件            |
+| 类组件              |
 
-2. 组件必须使用前先定义
+---
 
-3. 组件必须返回并且只能返回一个根元素
+## React
 
-### 合成事件和批量更新
+React 元素不可变,不可以改变元素类型，例如{type:h1}修改为{type:h2}，禁止修改对象属性 Object.freeze(object)，其实就是改变 writeable 属性为 false
+
+React 元素采用局部更新，只更新可变部分，domDiff,但是问题是更新的话，React 也要从组件的根节点更新，vue 是[发布订阅](./docs/push-subscribe.md)，可以实现真正的局部更新,后续增加了 Fiber，也可以局部更新
+
+---
+
+## 函数组件
+
+自定义组件必须是首字母大写 原生组件小写开头，自定义组件大写字母开头
+
+组件必须使用前先定义
+
+组件必须返回并且只能返回一个根元素
+
+---
+
+## 合成事件和批量更新
 
 ![avatar](./img/setState.png)
 
@@ -115,17 +92,17 @@ newEvent.emit("美女");
     })
 ```
 
-### 父与子组件生命周期执行顺序
+## 父与子组件生命周期执行顺序
 
-- 组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
+组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
 
-### react 老版生命周期
+## react 老版生命周期
 
-- 初始化：constructor -> componentWillMount->render->componentDidMount
+初始化：constructor -> componentWillMount->render->componentDidMount
 
-- 更新：shouldComponentUpdate->componentWillUpdate->render->componentDidUpdate
+更新：shouldComponentUpdate->componentWillUpdate->render->componentDidUpdate
 
-- 卸载：componentWillUnmount
+卸载：componentWillUnmount
 
 <br/>
 
@@ -133,39 +110,52 @@ newEvent.emit("美女");
 
 <br/>
 
-### react 新版生命周期
+## react 新版生命周期
 
 相对于老版，去除了几个 will 前缀生命周期,UNSAFE_componentWillUpdate,UNSAFE_componentWillMount,UNSAFE_componentWillReceiveProps。
 
-- 创建时： constructor -> getDerivedStateFromProps -> render -> componentDidMount
+创建时： constructor -> getDerivedStateFromProps -> render -> componentDidMount
 
-- 更新时： getDerivedStateFromProps -> shouldComponentUpdate -> render -> getSnapShotBeforeUpdate -> componentDidUpdate
+更新时： getDerivedStateFromProps -> shouldComponentUpdate -> render -> getSnapShotBeforeUpdate -> componentDidUpdate
 
-- 卸载时： componentWillUnmount
+卸载时： componentWillUnmount
 
-<br/>
+---
 
 ![avatar](./img/lifeCycle.png)
 
 <br/>
 
-### componentWillReceiveProps 和 getDerivedStateFromProps 的区别
+---
 
-- componentWillReceiveProps(nextProps) 首次加载不会触发，父组件导致子组件更新时，即便 props 没变化，也会执行。
+## componentWillReceiveProps 和 getDerivedStateFromProps 的区别
 
-- getDerivedStateFromProps(nextProps, prevState) **首次加载**，**父组件更新**，**props**，**setState**，**forceUpdate** 都会触发，将父级传入的 props 映射到 state 上，新生命周期当中用来替代 componentWillReceiveProps,如果不改变，需要 return null
+componentWillReceiveProps(nextProps) 首次加载不会触发，父组件导致子组件更新时，即便 props 没变化，也会执行。
 
-<br/>
-
-### getSnapshotBeforeUpdate
-
-- 获取 dom 更新前的信息，返回值传给 componentDidUpdate 第三个参数
+getDerivedStateFromProps(nextProps, prevState) **首次加载**，**父组件更新**，**props**，**setState**，**forceUpdate** 都会触发，将父级传入的 props 映射到 state 上，新生命周期当中用来替代 componentWillReceiveProps,如果不改变，需要 return null
 
 <br/>
 
-### React.createContext
+## getSnapshotBeforeUpdate
 
-- 创建执行上下文，用来向下传递属性，类组件可以挂载 contextType 静态属性，函数组件可以直接使用<Provider>和<Consumer>组件，主题切换之类的用的比较多
+获取 dom 更新前的信息，返回值传给 componentDidUpdate 第三个参数
+
+```javaScript
+  // 用来获取更新前的dom信息，返回值传给componentDidUpdate第三个参数
+  getSnapshotBeforeUpdate(prevProps, prevState) {
+    return this.ref.current.scrollHeight;
+  }
+  // 第三个参数是getSnapshotBeforeUpdate返回的值
+  componentDidUpdate(state, props, scrollHeight) {
+    console.log("父组件componentDidUpdate 组件更新完成", scrollHeight);
+  }
+```
+
+<br/>
+
+## React.createContext
+
+创建执行上下文，用来向下传递属性，类组件可以挂载 contextType 静态属性，函数组件可以直接使用<Provider>和<Consumer>组件，主题切换之类的用的比较多
 
 ```javaScript
   let {Provider,Counsumer} = React.createContext(); // 返回{provider,consumer}
@@ -196,13 +186,13 @@ newEvent.emit("美女");
   }
 ```
 
-### Fiber
+## Fiber
 
 ![avatar](./img/fiberFlow.png)
 
 Fiber 基于 requestAnimationFrame(宏任务) 和 MessageChanle(宏任务) 目前的做法是使用链表，每个虚拟节点内部表示一个 Fiber
 
-#### Fiber 执行阶段
+## Fiber 执行阶段
 
 1.协调阶段：可以认为是 dom diff 阶段，这个阶段可以被中断，这个阶段找出所有的节点变更，例如节点新增，删除，属性变更，这些变更 Rect 称之为副作用(effect)
 
@@ -306,11 +296,3 @@ requestIdleCallback(宏任务) 用来控制任务单元，利用浏览器空余�
 ```
 
 ![avatar](./img/fiberConstructor.png)
-
-### domDiff
-
-![avatar](./img/domDiff.jpeg)
-
-### 执行队列
-
-![avatar](./img/useLayoutEffect.png)

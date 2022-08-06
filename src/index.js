@@ -1,6 +1,6 @@
 /*
  * @Author: cc
- * @LastEditTime: 2022-06-06 16:24:56
+ * @LastEditTime: 2022-07-26 14:06:06
  */
 import React from "./core/react";
 import ReactDOM from "./core/react-dom"; //核心库
@@ -149,13 +149,7 @@ function TestHook() {
   return (
     <div>
       <input ref={ref} />
-      <button
-        onClick={() => {
-          dispatch({ type: "add" });
-        }}
-      >
-        触发子组件
-      </button>
+      <button>触发子组件</button>
       <button
         onClick={() => {
           setCount(count + 1);

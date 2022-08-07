@@ -1,7 +1,11 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-08-06 20:21:45
+ * @LastEditTime: 2022-08-07 00:24:59
 -->
+
+## React 源码实现
+
+<br/>
 
 ## 📦 安装依赖
 
@@ -14,6 +18,20 @@ npm i
 ```shell
  npm run dev
 ```
+
+---
+
+## React
+
+- react 包含 createElement 的核心
+
+* shared 存放各个公共模块的公用方法和变量
+
+* scheduler 实现了优先调度功能
+
+* react-reconciler 提供协调器的功能
+
+* react-dom 提供了渲染到 DOM 的功能
 
 ---
 
@@ -85,7 +103,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ## 事件合成
 
-React 会把事件绑定在 render 函数的节点上，React16 版本为 document 上，但是 React 在 document 会模拟捕获和冒泡流程，导致和浏览器表现不一致
+React16 版本为冒泡到到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root 上了)
 
 ```javaScript
   // element.addEventListener(event, function, useCapture) useCapture === true ? '捕获' : '冒泡'，默认冒泡
@@ -107,6 +125,61 @@ React 会把事件绑定在 render 函数的节点上，React16 版本为 docume
     <button onClick={this.handleClick}></button>
     {this.state.show && <a>显示</a>}
 ```
+
+---
+
+## setState 是同步还是异步？
+
+- 新版本 React18 全部都是异步批量处理，之前版本两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
+
+React18 使用 createRoot，所以在 Promise 或者 setTiemout 也可以批量更新，不用使用 unstable_batchedUpdates 了,render 为同步模式(legacy)，createRoot 为并发模式(concurrent)
+
+1. React 在执行 setState 的时候会把更新的内容放入队列
+
+2. 在事件执行结束后会计算 state 的数据，然后执行回调
+
+3. 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
+
+- 优点
+
+  1.为保持内部一致性，如果改为同步更新的方式，尽管 setState 变成了同步，但是 props 不是
+
+  2.为后续的架构升级启用并发更新，React 会在 setState 时，根据它们的数据来源分配不用的优先级，这些数据来源有：事件回调句柄，动画效果等，再根据优先级并发处理，提升渲染性能
+
+  3.setState 设计为异步，可以显著提升性能(非合成事件和钩子函数当中是同步的，例如 Promise 中就是同步)，使用 batchedUpdates 可以已经批量更新
+
+```javaScript
+    this.setState({ count: this.state.count + 1 });
+    console.log(this.state.count); // 批量更新所以是0
+    this.setState({ count: this.state.count + 1 }, () => {
+      console.log(this.state.count); // 批量更新之后会立即执行 1
+    });
+    setTimeout(() => {
+      this.setState({ count: this.state.count + 1 });
+      console.log(this.state.count); // setTimeout不受批量更新限制，所以为 1
+    });
+    unstable_batchedUpdates(() => {
+      // 同步批量
+      setTimeout(() => {
+        this.setState({ count: this.state.count + 1 });
+        console.log(this.state.count); // 1
+      });
+    });
+    setTimeout(() => {
+      this.setState({ count: this.state.count + 1 });
+      console.log(this.state.count); // React18不用unstable_batchedUpdates也会同步批量所以是 1
+        this.setState({ count: this.state.count + 1 });
+      console.log(this.state.count); // React18不用unstable_batchedUpdates也会同步批量所以是 1
+    });
+```
+
+## ![avatar](./img/setState.png)
+
+## 父与子组件生命周期执行顺序
+
+组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
+
+---
 
 ![avatar](./img/eventBubble.png)
 

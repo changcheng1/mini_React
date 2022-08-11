@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-08-07 00:24:59
+ * @LastEditTime: 2022-08-11 11:26:18
 -->
 
 ## React 源码实现
@@ -53,26 +53,26 @@ npm i
 
 ## DomDiff
 
-DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
+- DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
 
-单节点
+- 单节点
 
-1.新旧节点 type 和 key 都不一样，标记为删除
+  1.新旧节点 type 和 key 都不一样，标记为删除
 
-2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
-再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
+  2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
+  再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
 
-3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
-直接把老的节点全部删除
+  3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
+  直接把老的节点全部删除
 
 ![avatar](./img/singleDomDiff.png)
 
-多节点
+- 多节点
 
-1.如果新的节点有多个的话
-我们经过二轮遍历
-第一轮处理更新的情况 属性和类型 type 的更新 更新或者说保持 不变的频率会比较高
-第二轮处理新增 删除 移动 的情况
+  1.如果新的节点有多个的话
+  我们经过二轮遍历
+  第一轮处理更新的情况 属性和类型 type 的更新 更新或者说保持 不变的频率会比较高
+  第二轮处理新增 删除 移动 的情况
 
 ```javaScript
   <ul>
@@ -91,10 +91,10 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
     <li key="B">B-NEW</li>
     <li key="G">G-NEW</li>
   </ul>
-  如果第一轮遍历的时候，发现key不一样，则立刻跳出第一轮循环
-  key不一样，说明可能有位置变化，更新A
+  // 如果第一轮遍历的时候，发现key不一样，则立刻跳出第一轮循环
+  // key不一样，说明可能有位置变化，更新A
 
-  第二轮循环，新建map={"B":"B","C":"C","D":"D","E":"E","F":"F"}，可以复用的节点标记为更新，从map中删除，然后map={"D":"D","F":"F"}，还没有被复用的fiber节点，等新的jsx数组遍历完之后，把map中的所有节点标记为删除，再更新，然后移动，记录第一轮的lastPlaceIndex，最小的oldIndex移动，最后插入新元素。
+  //第二轮循环，新建map={"B":"B","C":"C","D":"D","E":"E","F":"F"}，可以复用的节点标记为更新，从map中删除，然后map={"D":"D","F":"F"}，还没有被复用的fiber节点，等新的jsx数组遍历完之后，把map中的所有节点标记为删除，再更新，然后移动，记录第一轮的lastPlaceIndex，最小的oldIndex移动，最后插入新元素。
 ```
 
 ![avatar](./img/moreDomDiff.png)
@@ -103,7 +103,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ## 事件合成
 
-React16 版本为冒泡到到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root 上了)
+- React16 版本为冒泡到到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root 上了)
 
 ```javaScript
   // element.addEventListener(event, function, useCapture) useCapture === true ? '捕获' : '冒泡'，默认冒泡
@@ -132,15 +132,15 @@ React16 版本为冒泡到到 document 上执行，所以导致和浏览器表�
 
 - 新版本 React18 全部都是异步批量处理，之前版本两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
 
-React18 使用 createRoot，所以在 Promise 或者 setTiemout 也可以批量更新，不用使用 unstable_batchedUpdates 了,render 为同步模式(legacy)，createRoot 为并发模式(concurrent)
+* React18 使用 createRoot，所以在 Promise 或者 setTiemout 也可以批量更新，不用使用 unstable_batchedUpdates 了,render 为同步模式(legacy)，createRoot 为并发模式(concurrent)
 
-1. React 在执行 setState 的时候会把更新的内容放入队列
+- React 在执行 setState 的时候会把更新的内容放入队列
 
-2. 在事件执行结束后会计算 state 的数据，然后执行回调
+- 在事件执行结束后会计算 state 的数据，然后执行回调
 
-3. 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
+- 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
 
-- 优点
+* 优点
 
   1.为保持内部一致性，如果改为同步更新的方式，尽管 setState 变成了同步，但是 props 不是
 
@@ -175,13 +175,88 @@ React18 使用 createRoot，所以在 Promise 或者 setTiemout 也可以批量�
 
 ## ![avatar](./img/setState.png)
 
+---
+
 ## 父与子组件生命周期执行顺序
 
-组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
+- 组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
+
+## ![avatar](./img/eventBubble.png)
 
 ---
 
-![avatar](./img/eventBubble.png)
+## Fiber 树
+
+- Fiber 是一个执行单元，每执行一次任务，React 会检查现在还剩多少时间，如果没有就交出控制权
+
+![avatar](./img/beginWork.jpg)
+
+- beginWork 方法进行深度优先遍历，调用 reconcileChildren 方法，构建 fiber 树，while 循环深度优先所有的儿子，然后 while 结束通过调用 completeUnitWork 方法往上遍历 sibling
+
+* current Fiber 树当渲染完毕后会生成一个 current Fiber 树
+
+* workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+
+* workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
+
+## ![avatar](./img/fiber.jpg)
+
+---
+
+### 首次渲染
+
+- 一个组件对应一个 Fiber，一个 Fiber 中单链表记录多个 hook,mountWorkInProgress 用来构建 hooks 的单项链表，currentLyRenderingFiber.memoizedState 是一条单项链表用来记录 hook,{memoizedState:'',queue:null,next:next:null},memoizedState 用来记录自己的状态，queue 自己的更新队列，环形链表，next 下一个更新
+
+![avatar](./img/firstRender.jpg)
+
+---
+
+## 组件更新
+
+- hook 并不能写在 if 里，因为要保持 hook 更新时一致
+
+![avatar](./img/hookUpdate.jpg)
+
+---
+
+## 循环链表
+
+- react 源码中用于组件更新(dispatchAction) 核心
+
+* 链表是另一种形式的链表存储结构
+
+* 它的特点是最后一个节点的指针区域指向头节点，整个链表形成一个环，永远指向最后一个更新
+
+```javaScript
+  // pedding.next指向第一个第一个更新，更新顺序是不变的，成环状
+  function dispatchAction(queue,action){
+    const update = {action,next:null};
+    const pedding = queue.pedding;
+    if(pedding == null){
+      update.next = update;
+    }else{
+      update.next = pedding.next;
+      pedding.next = update;
+    }
+    queue.pedding = update;
+  }
+  //队列
+  let queue = {padding:null};
+  dispatchAction(queue,'action1')
+  dispatchAction(queue,'action2')
+  dispatchAction(queue,'action3')
+  // pedding: { action: 'action3', next: { action: 'action1', next: [Object] } }
+  const peddingQueue = queue.pedding;
+  // 源码中的遍历环形链表
+  while(peddingQueue){
+    let first = peddingQueue.pedding;
+    let update = first;
+    do{
+       console.log(update) // action1 action2 action3
+       update = update.next;
+    }while(update !== first){}
+  }
+```
 
 ---
 

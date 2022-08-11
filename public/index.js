@@ -1618,11 +1618,11 @@
 	  var dispatcher = resolveDispatcher();
 	  return dispatcher.useState(initialState);
 	};
-	var useEffect = function useEffect(create, deps) {
-	  var dispatcher = resolveDispatcher();
-	  return dispatcher.useEffect(create, deps);
-	};
 
+	/*
+	 * @Author: changcheng
+	 * @LastEditTime: 2022-08-08 16:41:27
+	 */
 	var React = {
 	  createElement: createElement
 	};
@@ -8792,9 +8792,6 @@
 	var NoContext =
 	/*             */
 	0;
-	var BatchedContext =
-	/*               */
-	1;
 	var EventContext =
 	/*                 */
 	2;
@@ -9076,7 +9073,7 @@
 
 	  if (nextLanes === NoLanes) {
 	    if (existingCallbackNode !== null) {
-	      throw new Error('Not Implement');
+	      throw new Error("Not Implement");
 	    }
 
 	    root.callbackNode = null;
@@ -9137,7 +9134,7 @@
 	        break;
 
 	      default:
-	        throw new Error('Not implement');
+	        throw new Error("Not implement");
 	    } //调度performConcurrentWorkOnRoot
 
 
@@ -9162,7 +9159,7 @@
 	  var didFlushPassiveEffects = flushPassiveEffects();
 
 	  if (didFlushPassiveEffects) {
-	    throw new Error('Not Implement');
+	    throw new Error("Not Implement");
 	  }
 
 	  var lanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
@@ -9206,7 +9203,7 @@
 	      break;
 
 	    default:
-	      throw new Error('Not Implement');
+	      throw new Error("Not Implement");
 	  }
 	};
 	/**
@@ -9310,7 +9307,7 @@
 	  if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
 	    //我们正处于React的工作流程中
 	    //可以返回一个真实的时间,我们的实现没有用到该分支
-	    throw new Error('Not Implement');
+	    throw new Error("Not Implement");
 	  } //我们处于一个浏览器事件中，所有在同一个事件的handler中请求的开始时间
 	  //都应该是相同的,比如在onClick的handler多次setState就会调用dispatchAction
 	  //多次请求时间
@@ -9355,7 +9352,7 @@
 	      ensureRootIsScheduled(root, eventTime);
 
 	      if (executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode) {
-	        throw new Error('Not Implement');
+	        throw new Error("Not Implement");
 	      }
 	    }
 	  } else {
@@ -9403,26 +9400,6 @@
 	  }
 	};
 	/**
-	 * 给执行上下文加上LegacyUnbatchedContext,等到scheduleUpdateOnFilber执行时
-	 * 就会跳转到performSyncWorkOnRoot逻辑，目前只有ReactDOM.render方法中用到了
-	 * 该函数
-	 * @param fn 要在该上下文中执行的操作要执行的操作
-	 * @param a
-	 * @returns
-	 */
-
-	var unbatchedUpdates = function unbatchedUpdates(fn, a) {
-	  var prevExecutionContext = executionContext;
-	  executionContext &= ~BatchedContext;
-	  executionContext |= LegacyUnbatchedContext;
-
-	  try {
-	    return fn(a);
-	  } finally {
-	    executionContext = prevExecutionContext;
-	  }
-	};
-	/**
 	 * 更具fiber所处的mode获得该次更新的优先级
 	 * @param fiber
 	 * @returns 返回该次更新的优先级
@@ -9432,7 +9409,7 @@
 	  var mode = fiber.mode; //如果不处于ConcurrentMode，不管三七二十一直接返回SyncLane
 
 	  if ((mode & ConcurrentMode) === NoMode) return SyncLane;else if ((executionContext & RenderContext) !== NoContext) {
-	    throw new Error('Not Implement');
+	    throw new Error("Not Implement");
 	  }
 	  /**
 	   * 不同模块产生的优先级能互动的桥梁比如ReactDom中产生的一个click事件就会先将
@@ -9560,12 +9537,16 @@
 	  var root = this._internalRoot;
 	  updateContainer(children, root);
 	};
+
+	var createRoot = function createRoot(container) {
+	  return new ReactDomRoot(container);
+	};
 	/**
 	 *
 	 * @param container createRoot的第一个参数，一个dom元素，表示该React App要改在的容器
 	 * @param tag 该Root的类型用createRoot创建的为ConcurrentRoot,
 	 * 用ReactDOM.render创建的为LegacyRoot
-	 *该标签对以后的流程有深远的影响
+	 * 该标签对以后的流程有深远的影响
 	 * @returns 返回一个FiberRoot,一个在并不对应任何DOM的最上层节点，
 	 * 所有的fiber节点的根节点，注意HostRoot(Fiber树根节点)可以有多个,
 	 * 但是FiberRoot只有一个
@@ -9579,46 +9560,6 @@
 
 	  listenToAllSupportedEvents(rootContainerElement);
 	  return root;
-	};
-	/**
-	 * 创建一个LegacyRoot也就是ReactDOM.render所创建出的root
-	 * 该模式没有优先级调度，以及时间切片功能
-	 * @param container 挂载ReactApp 的dom容器
-	 * @returns 
-	 */
-
-
-	var createLegacyRoot = function createLegacyRoot(container) {
-	  return new ReactDOMLegacyRoot(container);
-	};
-
-	var legacyCreateRootFromDOMContainer = function legacyCreateRootFromDOMContainer(container) {
-	  return createLegacyRoot(container);
-	};
-
-	var legacyRenderSubtreeIntoContainer = function legacyRenderSubtreeIntoContainer(parentComponent, children, container, callback) {
-	  var _fiberRoot$current$ch3;
-
-	  var root = container._reactRootContainer;
-	  var fiberRoot;
-
-	  if (!root) {
-	    //首次挂载
-	    root = container._reactRootContainer = legacyCreateRootFromDOMContainer(container);
-	    fiberRoot = root._internalRoot;
-
-	    unbatchedUpdates(function () {
-	      updateContainer(children, fiberRoot);
-	    }, null);
-	  } else {
-	    throw new Error('Not Implement');
-	  }
-
-	  return (_fiberRoot$current$ch3 = fiberRoot.current.child) === null || _fiberRoot$current$ch3 === void 0 ? void 0 : _fiberRoot$current$ch3.stateNode;
-	};
-
-	var render = function render(element, container, callback) {
-	  return legacyRenderSubtreeIntoContainer(null, element, container);
 	};
 
 	var isArray$5 = isArray$2;
@@ -9854,27 +9795,21 @@
 
 	var _slicedToArray = unwrapExports(slicedToArray);
 
-	var MemorizedComponentDemo = function MemorizedComponentDemo() {
-	  var _useState = useState(0),
+	function MemorizedComponentDemo() {
+	  var _useState = useState(1),
 	      _useState2 = _slicedToArray(_useState, 2),
-	      count = _useState2[0],
-	      setCount = _useState2[1];
+	      number = _useState2[0],
+	      dispatch = _useState2[1];
 
-	  useEffect(function () {}, []);
-	  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
-	    onClick: function onClick() {
-	      setCount(count += 1);
-	      console.log("count", count);
-	    }
-	  }, "\u70B9\u51FB"), /*#__PURE__*/React.createElement("p", null, count));
-	};
+	  return /*#__PURE__*/React.createElement("div", null, number);
+	}
 
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2022-08-03 18:14:39
+	 * @LastEditTime: 2022-08-11 11:37:54
 	 */
-	render( /*#__PURE__*/React.createElement(MemorizedComponentDemo, null), document.querySelector("#app")); // createRoot(document.querySelector('#app')!).render(<TodoList />)
-	// createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
+
+	createRoot(document.querySelector("#app")).render( /*#__PURE__*/React.createElement(MemorizedComponentDemo, null)); // createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
 	// createRoot(document.querySelector('#app')!).render(<ChildrenReconcilerDemo />)
 	// createRoot(document.querySelector('#app')!).render(<LayoutEffectDemo />)
 	// createRoot(document.querySelector('#app')!).render(<StateEffectDemo />)

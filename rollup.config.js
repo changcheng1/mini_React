@@ -1,27 +1,27 @@
-import replace from '@rollup/plugin-replace'
-import resolve from '@rollup/plugin-node-resolve'
-import commonjs from '@rollup/plugin-commonjs'
-import babel from 'rollup-plugin-babel'
-import html from '@rollup/plugin-html'
-import { terser } from 'rollup-plugin-terser'
-import serve from 'rollup-plugin-serve'
-import livereload from 'rollup-plugin-livereload'
-import sourcemaps from 'rollup-plugin-sourcemaps'
+import replace from "@rollup/plugin-replace";
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+import babel from "rollup-plugin-babel";
+import html from "@rollup/plugin-html";
+import { terser } from "rollup-plugin-terser";
+import serve from "rollup-plugin-serve";
+import livereload from "rollup-plugin-livereload";
+import sourcemaps from "rollup-plugin-sourcemaps";
 
-const isProd = process.env.NODE_ENV === 'development'
-const extensions = ['.js', '.ts', '.tsx']
+const isProd = process.env.NODE_ENV === "development";
+const extensions = [".js", ".ts", ".tsx"];
 
 export default {
-  input: 'examples/index.tsx',
+  input: "examples/index.tsx",
   output: {
-    file: 'public/index.js',
-    format: 'iife',
+    file: "public/index.js",
+    format: "iife",
     sourcemap: true,
   },
   plugins: [
     replace({
-      'process.env.NODE_ENV': JSON.stringify(
-        isProd ? 'production' : 'development'
+      "process.env.NODE_ENV": JSON.stringify(
+        isProd ? "production" : "development"
       ),
       preventAssignment: true,
     }),
@@ -38,22 +38,22 @@ export default {
       babelrc: false,
       runtimeHelpers: true,
       presets: [
-        '@babel/preset-env',
-        '@babel/preset-react',
-        '@babel/preset-typescript',
+        "@babel/preset-env",
+        "@babel/preset-react",
+        "@babel/preset-typescript",
       ],
       plugins: [
-        'react-require',
-        '@babel/plugin-syntax-dynamic-import',
-        '@babel/plugin-proposal-class-properties',
+        "react-require",
+        "@babel/plugin-syntax-dynamic-import",
+        "@babel/plugin-proposal-class-properties",
         [
-          '@babel/plugin-proposal-object-rest-spread',
+          "@babel/plugin-proposal-object-rest-spread",
           {
             useBuiltIns: true,
           },
         ],
         [
-          '@babel/plugin-transform-runtime',
+          "@babel/plugin-transform-runtime",
           {
             corejs: 3,
             helpers: true,
@@ -64,8 +64,8 @@ export default {
       ],
     }),
     html({
-      fileName: 'index.html',
-      title: 'Rollup + TypeScript + React = ❤️',
+      fileName: "index.html",
+      title: "Rollup + TypeScript + React = ❤️",
       template: ({ title }) => {
         return `
 <!DOCTYPE html>
@@ -79,7 +79,7 @@ export default {
   <script src="index.js"></script>
 </body>
 </html>
-`
+`;
       },
     }),
     // scss({
@@ -88,14 +88,14 @@ export default {
     isProd && terser(),
     !isProd &&
       serve({
-        host: 'localhost',
-        port: 3000,
+        host: "localhost",
+        port: 9000,
         open: true,
-        contentBase: ['public'],
+        contentBase: ["public"],
       }),
     !isProd &&
       livereload({
-        watch: 'public',
+        watch: "public",
       }),
   ],
-}
+};

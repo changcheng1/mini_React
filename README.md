@@ -1,37 +1,11 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-08-11 11:26:18
+ * @LastEditTime: 2022-08-15 15:10:15
 -->
 
-## React 源码实现
+## React 工作循环
 
-<br/>
-
-## 📦 安装依赖
-
-```shell
-npm i
-```
-
-## ⌨️ 运行：
-
-```shell
- npm run dev
-```
-
----
-
-## React
-
-- react 包含 createElement 的核心
-
-* shared 存放各个公共模块的公用方法和变量
-
-* scheduler 实现了优先调度功能
-
-* react-reconciler 提供协调器的功能
-
-* react-dom 提供了渲染到 DOM 的功能
+![avatar](./img/react.png)
 
 ---
 
@@ -132,7 +106,7 @@ npm i
 
 - 新版本 React18 全部都是异步批量处理，之前版本两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
 
-* React18 使用 createRoot，所以在 Promise 或者 setTiemout 也可以批量更新，不用使用 unstable_batchedUpdates 了,render 为同步模式(legacy)，createRoot 为并发模式(concurrent)
+* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent并发模式)，所以在 Promise 或者 setTiemout可以实现同步并发
 
 - React 在执行 setState 的时候会把更新的内容放入队列
 
@@ -189,15 +163,17 @@ npm i
 
 - Fiber 是一个执行单元，每执行一次任务，React 会检查现在还剩多少时间，如果没有就交出控制权
 
-![avatar](./img/beginWork.jpg)
+## ![avatar](./img/fiberFlow.png)
 
-- beginWork 方法进行深度优先遍历，调用 reconcileChildren 方法，构建 fiber 树，while 循环深度优先所有的儿子，然后 while 结束通过调用 completeUnitWork 方法往上遍历 sibling
+- beginWork 方法进行深度优先遍历，调用 reconcileChildren 方法，从 root 节点，while 循环深度优先所有的儿子，构建 fiber 树，然后 while 结束通过调用 completeUnitWork 方法往上遍历
 
-* current Fiber 树当渲染完毕后会生成一个 current Fiber 树
+## ![avatar](./img/beginWork.jpg)
 
-* workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+- current Fiber 树当渲染完毕后会生成一个 current Fiber 树
 
-* workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
+- workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+
+- workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
 
 ## ![avatar](./img/fiber.jpg)
 
@@ -221,7 +197,7 @@ npm i
 
 ## 循环链表
 
-- react 源码中用于组件更新(dispatchAction) 核心
+- react 源码中用于组件更新(dispatchAction) 核心，用于创建环形链表进行更新(updateQueue)
 
 * 链表是另一种形式的链表存储结构
 

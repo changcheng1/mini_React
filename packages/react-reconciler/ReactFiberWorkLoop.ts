@@ -51,6 +51,7 @@ import {
   NormalPriority as NormalSchedulerPriority,
 } from "./Scheduler";
 import { enqueueInterleavedUpdates } from "./ReactFiberInterleavedUpdates";
+import { debug } from "console";
 
 type ExecutionContext = number;
 export const NoContext = /*             */ 0b000000;
@@ -523,6 +524,7 @@ const workLoopConcurrent = () => {
   //和Sync模式的区别就是，是否加了shouldYield，能在一定
   //时机暂停render过程
   while (workInProgress !== null && !shouldYield()) {
+    debugger;
     performUnitOfWork(workInProgress);
   }
 };

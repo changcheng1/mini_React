@@ -1,3 +1,7 @@
+/*
+ * @Author: changcheng
+ * @LastEditTime: 2022-09-23 18:08:06
+ */
 import { Container } from '../react-dom/ReactDomRoot'
 import { ReactNodeList } from '../shared/ReactTypes'
 import { createFiberRoot } from './ReactFiberRoot'
@@ -33,6 +37,7 @@ export const updateContainer = (
   element: ReactNodeList,
   container: FiberRoot
 ) => {
+
   const current: Fiber = container.current
   const eventTime = requestEventTime()
   //获得该次更新的优先级如果不处于ConcurrentMode下的话优先级永远都为Sync

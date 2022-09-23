@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-08-15 15:17:19
+ * @LastEditTime: 2022-09-23 18:57:02
 -->
 
 ## React 工作循环
@@ -9,19 +9,65 @@
 
 ---
 
-## React 渲染过程
+## 初始流程
 
-快速响应->异步可中断(Fiber)+增量更新(dom diff)
+![avatar](./img/beginWork.png)
 
-- 性能瓶颈 Js 执行时间过长
+React分为两种模式,render和createRoot两种入口,分为**legacy**和**concurrent**两种
 
-  浏览器的刷新频率假设为 60hz，大概 (1 秒/60)16.6 毫秒更新一次，而 js 的线程和渲染线程是相斥的，如果 js 执行任务时间超过 16.6 毫秒，就会导致掉帧，解决方案就是 React 利用空闲时间进行更新，不影响渲染进行渲染。
++ legacy模式(同步)
 
-- 帧
+render调用legacyRenderSubtreeIntoContainer，最后createRootImpl会调用到createFiberRoot创建fiberRootNode,然后调用createHostRootFiber创建rootFiber，其中fiberRootNode是整个项目的的根节点，rootFiber是当前应用挂在的节点，也就是ReactDOM.render调用后的根节点
 
-  每个帧的开头包含样式计算、布局和绘制，javaScript 执行 js 引擎和页面渲染在同一个渲染线程 GUI 和 js 执行是相斥的(因为 js 可以修改 dom)，所以利用 requestIdleCallback(由于兼容性，react 使用 MessageChannel+requestAnimationFrame 模拟) 在每一帧的空闲时间执行任务
 
-![avatar](./img/requestIdleback.png)
++ concurrent模式(异步)
+
+createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl中调用listenToAllSupportedEvents初始化事件注册
+
+创建完Fiber节点后，调用ReactDOMRoot.prototype.render执行updateContainer，然后scheduleUpdateOnFiber异步调度performConcurrentWorkOnRoot进入render阶段和commit阶段
+
+---
+
+## updateQueue
+
+![avatar](./img/createUpdateQueue.png)
+
+
+链表是另一种形式的链表存储结构,模拟源码enqueueUpdate方法
+
+它的特点是最后一个节点的指针区域指向头节点，整个链表形成一个环，永远指向最后一个更新
+
+```javaScript
+// pedding.next指向第一个第一个更新，更新顺序是不变的，此为环状列表
+  function dispatchAction(queue,action){
+    const update = {action,next:null};
+    const pedding = queue.pedding;
+    if(pedding == null){
+      update.next = update;
+    }else{
+      update.next = pedding.next;
+      pedding.next = update;
+    }
+    queue.pedding = update;
+  }
+  //队列
+  let queue = {padding:null};
+  dispatchAction(queue,'action1')
+  dispatchAction(queue,'action2')
+  dispatchAction(queue,'action3')
+  // pedding: { action: 'action3', next: { action: 'action1', next: [Object] } }
+  const peddingQueue = queue.pedding;
+  // 源码中的遍历环形链表
+  while(peddingQueue){
+    let first = peddingQueue.pedding;
+    let update = first;
+    do{
+       console.log(update) // action1 action2 action3
+       update = update.next;
+    }while(update !== first){}
+  }
+```
+接下来通过updateContainer方法把虚拟DomElement变成真实dom插入到container中
 
 ---
 
@@ -75,11 +121,30 @@
 
 ---
 
-## 事件合成
+## 事件代理
 
-- React16 版本为冒泡到到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root 上了)
+
+![avatar](./img/maopao.jpg)
+
++ <font color="orange">捕获事件是先注册先执行，冒泡事件是先注册后执行</font>
+
+- React17之前事件会冒泡到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root节点 上了)
+
++ 新版本在createRoot时，会调用createImpl，在root节点listenToAllSupportedEvents直接初始化事件系统
+
++ 先React捕获，再原生捕获，先原生冒泡再React冒泡
 
 ```javaScript
+  // result:
+  // 父元素React事件捕获
+  // 子元素React事件捕获
+  // 父元素原生事件捕获
+  // 子元素原生事件捕获
+  // 子元素原生事件冒泡
+  // 父元素原生事件冒泡
+  // 子元素React事件冒泡
+  // 父元素原生事件冒泡
+
   // element.addEventListener(event, function, useCapture) useCapture === true ? '捕获' : '冒泡'，默认冒泡
   // e.preventDefault() 阻止事件默认行为
   // onClickCapture 捕获 onClick 冒泡
@@ -104,9 +169,9 @@
 
 ## setState 是同步还是异步？
 
-- 新版本 React18 全部都是同步并发模式，React17版本是两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
+- 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
 
-* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent并发模式)，所以在 Promise 或者 setTiemout可以实现同步并发
+* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent异步模式)
 
 - React 在执行 setState 的时候会把更新的内容放入队列
 
@@ -123,28 +188,16 @@
   3.setState 设计为异步，可以显著提升性能(非合成事件和钩子函数当中是同步的，例如 Promise 中就是同步)，使用 batchedUpdates 可以已经批量更新
 
 ```javaScript
-    this.setState({ count: this.state.count + 1 });
-    console.log(this.state.count); // 批量更新所以是0
-    this.setState({ count: this.state.count + 1 }, () => {
-      console.log(this.state.count); // 批量更新之后会立即执行 1
-    });
-    setTimeout(() => {
-      this.setState({ count: this.state.count + 1 });
-      console.log(this.state.count); // setTimeout不受批量更新限制，所以为 1
-    });
-    unstable_batchedUpdates(() => {
-      // 同步批量
-      setTimeout(() => {
+     this.setState({ count: this.state.count + 1 });
+     console.log(this.state.count); // 批量更新所以是 0
+     this.setState({ count: this.state.count + 1 });
+     console.log(this.state.count); // 批量更新所以是 0
+     setTimeout(() => {
         this.setState({ count: this.state.count + 1 });
-        console.log(this.state.count); // 1
-      });
-    });
-    setTimeout(() => {
-      this.setState({ count: this.state.count + 1 });
-      console.log(this.state.count); // React18不用unstable_batchedUpdates也会同步批量所以是 1
+        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步2
         this.setState({ count: this.state.count + 1 });
-      console.log(this.state.count); // React18不用unstable_batchedUpdates也会同步批量所以是 1
-    });
+        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
+     });
 ```
 
 ## ![avatar](./img/setState.png)
@@ -158,7 +211,7 @@
 
 - beginWork 方法进行深度优先遍历，调用 reconcileChildren 方法，从 root 节点，while 循环深度优先所有的儿子，构建 fiber 树，然后 while 结束通过调用 completeUnitWork 方法往上遍历
 
-## ![avatar](./img/beginWork.jpg)
+## ![avatar](./img/fiberSimple.png)
 
 - current Fiber 树当渲染完毕后会生成一个 current Fiber 树
 
@@ -168,63 +221,5 @@
 
 ## ![avatar](./img/fiber.jpg)
 
----
-
-### 首次渲染
-
-- 一个组件对应一个 Fiber，一个 Fiber 中单链表记录多个 hook,mountWorkInProgress 用来构建 hooks 的单项链表，currentLyRenderingFiber.memoizedState 是一条单项链表用来记录 hook,{memoizedState:'',queue:null,next:next:null},memoizedState 用来记录自己的状态，queue 自己的更新队列，环形链表，next 下一个更新
-
-![avatar](./img/firstRender.jpg)
-
----
-
-## 组件更新
-
-- hook 并不能写在 if 里，因为要保持 hook 更新时一致
-
-![avatar](./img/hookUpdate.jpg)
-
----
-
-## 循环链表
-
-- react 源码中用于组件更新(dispatchAction) 核心，用于创建环形链表进行更新(updateQueue)
-
-* 链表是另一种形式的链表存储结构
-
-* 它的特点是最后一个节点的指针区域指向头节点，整个链表形成一个环，永远指向最后一个更新
-
-```javaScript
-  // pedding.next指向第一个第一个更新，更新顺序是不变的，成环状
-  function dispatchAction(queue,action){
-    const update = {action,next:null};
-    const pedding = queue.pedding;
-    if(pedding == null){
-      update.next = update;
-    }else{
-      update.next = pedding.next;
-      pedding.next = update;
-    }
-    queue.pedding = update;
-  }
-  //队列
-  let queue = {padding:null};
-  dispatchAction(queue,'action1')
-  dispatchAction(queue,'action2')
-  dispatchAction(queue,'action3')
-  // pedding: { action: 'action3', next: { action: 'action1', next: [Object] } }
-  const peddingQueue = queue.pedding;
-  // 源码中的遍历环形链表
-  while(peddingQueue){
-    let first = peddingQueue.pedding;
-    let update = first;
-    do{
-       console.log(update) // action1 action2 action3
-       update = update.next;
-    }while(update !== first){}
-  }
-```
-
----
 
 参考链接 [React 技术解密](https://react.iamkasong.com/) https://react.iamkasong.com/

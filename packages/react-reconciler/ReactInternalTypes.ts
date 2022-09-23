@@ -29,10 +29,10 @@ export type FiberRoot = {
   callbackNode: unknown
   callbackPriority: Lane
 
-  pendingLanes: Lanes
-  expiredLanes: Lanes
-  expirationTimes: LaneMap<number>
-  eventTimes: LaneMap<number>
+  pendingLanes: Lanes  // 等待优先级
+  expiredLanes: Lanes  // 过期优先级
+  expirationTimes: LaneMap<number> // 过期时间
+  eventTimes: LaneMap<number> // 事件时间
 
   /**
    * root的类型(legacy, batched,concurrent等)
@@ -103,7 +103,7 @@ export type Fiber = {
    * ['children', 'new text', 'style', {background: 'red'}]
    * 代表了他对应的dom需要更新textContent和style属性
    */
-  updateQueue: unknown
+  updateQueue: unknown  // 存储effect的链表
 
   /**
    * 表示了该节点的类型，比如HostComponent,FunctionComponent,HostRoot
@@ -119,7 +119,7 @@ export type Fiber = {
   /**
    * 该节点链接了workInPrgress树和current fiber树之间的节点
    */
-  alternate: Fiber | null
+  alternate: Fiber | null 
 
   /**
    * 用于多节点children进行diff时提高节点复用的正确率

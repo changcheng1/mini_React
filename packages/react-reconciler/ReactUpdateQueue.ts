@@ -50,7 +50,7 @@ export type Update = {
 }
 
 /**
- *初始化fiber节点的updateQueue
+ *初始化fiber节点的updateQueue，更新队列是个环形链表
  *
  * @param fiber 要初始化updateQueue的fiber
  */
@@ -111,7 +111,7 @@ export const enqueueUpdate = (fiber: Fiber, update: Update): void => {
     //update2的next指向当前创建的update3
     pending.next = update
   }
-
+  // 永远指向最新的更新
   sharedQueue.pending = update
 }
 

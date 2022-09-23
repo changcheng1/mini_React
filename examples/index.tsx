@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-08-11 11:37:54
+ * @LastEditTime: 2022-09-23 17:28:53
  */
 import React from "../packages/react";
 import { createRoot, render } from "../packages/react-dom";
@@ -12,8 +12,8 @@ import { TodoList } from "./TodoList";
 import { ChildrenReconcilerDemo } from "./ChildrenReconciler";
 import { MemorizedComponentDemo } from "./MemorizedComponent";
 
-// render(<MemorizedComponentDemo />, document.querySelector("#app")!);
-createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
+render(<div id="title" key="title">内容</div>, document.querySelector("#app")!);
+// createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
 // createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
 // createRoot(document.querySelector('#app')!).render(<ChildrenReconcilerDemo />)
 // createRoot(document.querySelector('#app')!).render(<LayoutEffectDemo />)

@@ -1596,29 +1596,6 @@
 	  ReactCurrentDispatcher: ReactCurrentDispatcher
 	};
 
-	/**
-	 * 取得此时因该使用的Dispatcher,比如首次mount时的dispatcher就为
-	 * 就为HooksDispatcherOnMount
-	 * 组件更新时就为HooksDispatcherOnUpdate，
-	 * 具体逻辑可以查看react-reconciler/ReactFiberHooks下的renderWithHooks函数
-	 * @returns 
-	 */
-	var resolveDispatcher = function resolveDispatcher() {
-	  var dispatcher = ReactCurrentDispatcher.current;
-	  return dispatcher;
-	};
-	/**
-	 * 更具当前的dispatcher调用对应的useState
-	 * @param initialState 初始状态
-	 * @returns 
-	 */
-
-
-	var useState = function useState(initialState) {
-	  var dispatcher = resolveDispatcher();
-	  return dispatcher.useState(initialState);
-	};
-
 	/*
 	 * @Author: changcheng
 	 * @LastEditTime: 2022-08-08 16:41:27
@@ -2998,7 +2975,7 @@
 	var UpdateState = 0;
 
 	/**
-	 *初始化fiber节点的updateQueue
+	 *初始化fiber节点的updateQueue，更新队列是个环形链表
 	 *
 	 * @param fiber 要初始化updateQueue的fiber
 	 */
@@ -3053,7 +3030,8 @@
 	    update.next = pending.next; //update2的next指向当前创建的update3
 
 	    pending.next = update;
-	  }
+	  } // 永远指向最新的更新
+
 
 	  sharedQueue.pending = update;
 	};
@@ -3210,9 +3188,12 @@
 
 
 	var createFiberRoot = function createFiberRoot(containerInfo, tag) {
-	  var root = new FiberRootNode(containerInfo, tag);
-	  var uninitializedFiber = createHostRootFiber(tag);
-	  root.current = uninitializedFiber;
+	  var root = new FiberRootNode(containerInfo, tag); // 创建fiber树的根节点
+
+	  var uninitializedFiber = createHostRootFiber(tag); // 当前fiberRoot的current指向根fiber
+
+	  root.current = uninitializedFiber; // 让fiber根的真实dom节点指向fiberRoot的div
+
 	  uninitializedFiber.stateNode = root;
 	  initializeUpdateQueue(uninitializedFiber);
 	  return root;
@@ -6913,9 +6894,14 @@
 
 	var reconcileChildren = function reconcileChildren(current, workInProgress, nextChildren, renderLanes) {
 	  if (current === null) {
+	    // 初次渲染，不需要比较
 	    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren, renderLanes);
 	  } else {
-	    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderLanes);
+	    // 进行新老内容比较，得到差异进行更新
+	    workInProgress.child = reconcileChildFibers(workInProgress, // 新的fiber
+	    current.child, // 老fiber的第一个子节点
+	    nextChildren, // 新的虚拟dom
+	    renderLanes);
 	  }
 	};
 	/**
@@ -8792,6 +8778,9 @@
 	var NoContext =
 	/*             */
 	0;
+	var BatchedContext =
+	/*               */
+	1;
 	var EventContext =
 	/*                 */
 	2;
@@ -9216,6 +9205,7 @@
 	  //和Sync模式的区别就是，是否加了shouldYield，能在一定
 	  //时机暂停render过程
 	  while (workInProgress !== null && !shouldYield()) {
+	    debugger;
 	    performUnitOfWork(workInProgress);
 	  }
 	};
@@ -9400,6 +9390,26 @@
 	  }
 	};
 	/**
+	 * 给执行上下文加上LegacyUnbatchedContext,等到scheduleUpdateOnFilber执行时
+	 * 就会跳转到performSyncWorkOnRoot逻辑，目前只有ReactDOM.render方法中用到了
+	 * 该函数
+	 * @param fn 要在该上下文中执行的操作要执行的操作
+	 * @param a
+	 * @returns
+	 */
+
+	var unbatchedUpdates = function unbatchedUpdates(fn, a) {
+	  var prevExecutionContext = executionContext;
+	  executionContext &= ~BatchedContext;
+	  executionContext |= LegacyUnbatchedContext;
+
+	  try {
+	    return fn(a);
+	  } finally {
+	    executionContext = prevExecutionContext;
+	  }
+	};
+	/**
 	 * 更具fiber所处的mode获得该次更新的优先级
 	 * @param fiber
 	 * @returns 返回该次更新的优先级
@@ -9432,6 +9442,10 @@
 	  return workInProgressRoot !== null && (fiber.mode & ConcurrentMode) !== NoMode;
 	};
 
+	/*
+	 * @Author: changcheng
+	 * @LastEditTime: 2022-09-23 18:08:06
+	 */
 	/**
 	 *
 	 * @param containerInfo 当前创建的React App所挂载在的dom节点，在concurrent模式下由createRoot方法传入
@@ -9537,10 +9551,6 @@
 	  var root = this._internalRoot;
 	  updateContainer(children, root);
 	};
-
-	var createRoot = function createRoot(container) {
-	  return new ReactDomRoot(container);
-	};
 	/**
 	 *
 	 * @param container createRoot的第一个参数，一个dom元素，表示该React App要改在的容器
@@ -9561,255 +9571,63 @@
 	  listenToAllSupportedEvents(rootContainerElement);
 	  return root;
 	};
+	/**
+	 * 创建一个LegacyRoot也就是ReactDOM.render所创建出的root
+	 * 该模式没有优先级调度，以及时间切片功能
+	 * @param container 挂载ReactApp 的dom容器
+	 * @returns
+	 */
 
-	var isArray$5 = isArray$2;
 
-	var isArray$6 = isArray$5;
-
-	var isArray$7 = isArray$6;
-
-	var isArray$8 = isArray$7;
-
-	var arrayWithHoles = createCommonjsModule(function (module) {
-	function _arrayWithHoles(arr) {
-	  if (isArray$8(arr)) return arr;
-	}
-
-	module.exports = _arrayWithHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	unwrapExports(arrayWithHoles);
-
-	var getIteratorMethod_1 = getIteratorMethod;
-
-	var getIteratorMethod$1 = getIteratorMethod_1;
-
-	var getIteratorMethod$2 = getIteratorMethod$1;
-
-	var getIteratorMethod$3 = getIteratorMethod$2;
-
-	var getIteratorMethod$4 = getIteratorMethod$3;
-
-	var getIteratorMethod$5 = getIteratorMethod$4;
-
-	var iterableToArrayLimit = createCommonjsModule(function (module) {
-	function _iterableToArrayLimit(arr, i) {
-	  var _i = arr == null ? null : typeof symbol$5 !== "undefined" && getIteratorMethod$5(arr) || arr["@@iterator"];
-
-	  if (_i == null) return;
-	  var _arr = [];
-	  var _n = true;
-	  var _d = false;
-
-	  var _s, _e;
-
-	  try {
-	    for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
-	      _arr.push(_s.value);
-
-	      if (i && _arr.length === i) break;
-	    }
-	  } catch (err) {
-	    _d = true;
-	    _e = err;
-	  } finally {
-	    try {
-	      if (!_n && _i["return"] != null) _i["return"]();
-	    } finally {
-	      if (_d) throw _e;
-	    }
-	  }
-
-	  return _arr;
-	}
-
-	module.exports = _iterableToArrayLimit, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	unwrapExports(iterableToArrayLimit);
-
-	var slice$4 = slice$2;
-
-	var slice$5 = slice$4;
-
-	var slice$6 = slice$5;
-
-	var slice$7 = slice$6;
-
-	// call something on iterator step with safe closing on error
-	var callWithSafeIterationClosing = function (iterator, fn, value, ENTRIES) {
-	  try {
-	    return ENTRIES ? fn(anObject(value)[0], value[1]) : fn(value);
-	  } catch (error) {
-	    iteratorClose(iterator, 'throw', error);
-	  }
+	var createLegacyRoot = function createLegacyRoot(container) {
+	  return new ReactDOMLegacyRoot(container);
 	};
-
-	var $Array$3 = Array;
-
-	// `Array.from` method implementation
-	// https://tc39.es/ecma262/#sec-array.from
-	var arrayFrom = function from(arrayLike /* , mapfn = undefined, thisArg = undefined */) {
-	  var O = toObject(arrayLike);
-	  var IS_CONSTRUCTOR = isConstructor(this);
-	  var argumentsLength = arguments.length;
-	  var mapfn = argumentsLength > 1 ? arguments[1] : undefined;
-	  var mapping = mapfn !== undefined;
-	  if (mapping) mapfn = functionBindContext(mapfn, argumentsLength > 2 ? arguments[2] : undefined);
-	  var iteratorMethod = getIteratorMethod(O);
-	  var index = 0;
-	  var length, result, step, iterator, next, value;
-	  // if the target is not iterable or it's an array with the default iterator - use a simple case
-	  if (iteratorMethod && !(this === $Array$3 && isArrayIteratorMethod(iteratorMethod))) {
-	    iterator = getIterator(O, iteratorMethod);
-	    next = iterator.next;
-	    result = IS_CONSTRUCTOR ? new this() : [];
-	    for (;!(step = functionCall(next, iterator)).done; index++) {
-	      value = mapping ? callWithSafeIterationClosing(iterator, mapfn, [step.value, index], true) : step.value;
-	      createProperty(result, index, value);
-	    }
-	  } else {
-	    length = lengthOfArrayLike(O);
-	    result = IS_CONSTRUCTOR ? new this(length) : $Array$3(length);
-	    for (;length > index; index++) {
-	      value = mapping ? mapfn(O[index], index) : O[index];
-	      createProperty(result, index, value);
-	    }
-	  }
-	  result.length = index;
-	  return result;
-	};
-
-	var ITERATOR$4 = wellKnownSymbol('iterator');
-	var SAFE_CLOSING = false;
-
-	try {
-	  var called = 0;
-	  var iteratorWithReturn = {
-	    next: function () {
-	      return { done: !!called++ };
-	    },
-	    'return': function () {
-	      SAFE_CLOSING = true;
-	    }
-	  };
-	  iteratorWithReturn[ITERATOR$4] = function () {
-	    return this;
-	  };
-	  // eslint-disable-next-line es-x/no-array-from, no-throw-literal -- required for testing
-	  Array.from(iteratorWithReturn, function () { throw 2; });
-	} catch (error) { /* empty */ }
-
-	var checkCorrectnessOfIteration = function (exec, SKIP_CLOSING) {
-	  if (!SKIP_CLOSING && !SAFE_CLOSING) return false;
-	  var ITERATION_SUPPORT = false;
-	  try {
-	    var object = {};
-	    object[ITERATOR$4] = function () {
-	      return {
-	        next: function () {
-	          return { done: ITERATION_SUPPORT = true };
-	        }
-	      };
-	    };
-	    exec(object);
-	  } catch (error) { /* empty */ }
-	  return ITERATION_SUPPORT;
-	};
-
-	var INCORRECT_ITERATION = !checkCorrectnessOfIteration(function (iterable) {
-	  // eslint-disable-next-line es-x/no-array-from -- required for testing
-	  Array.from(iterable);
-	});
-
-	// `Array.from` method
-	// https://tc39.es/ecma262/#sec-array.from
-	_export({ target: 'Array', stat: true, forced: INCORRECT_ITERATION }, {
-	  from: arrayFrom
-	});
-
-	var from_1 = path.Array.from;
-
-	var from_1$1 = from_1;
-
-	var from_1$2 = from_1$1;
-
-	var from_1$3 = from_1$2;
-
-	var from_1$4 = from_1$3;
-
-	var from_1$5 = from_1$4;
-
-	var arrayLikeToArray = createCommonjsModule(function (module) {
-	function _arrayLikeToArray(arr, len) {
-	  if (len == null || len > arr.length) len = arr.length;
-
-	  for (var i = 0, arr2 = new Array(len); i < len; i++) {
-	    arr2[i] = arr[i];
-	  }
-
-	  return arr2;
-	}
-
-	module.exports = _arrayLikeToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	unwrapExports(arrayLikeToArray);
-
-	var unsupportedIterableToArray = createCommonjsModule(function (module) {
-	function _unsupportedIterableToArray(o, minLen) {
-	  var _context;
-
-	  if (!o) return;
-	  if (typeof o === "string") return arrayLikeToArray(o, minLen);
-
-	  var n = slice$7(_context = Object.prototype.toString.call(o)).call(_context, 8, -1);
-
-	  if (n === "Object" && o.constructor) n = o.constructor.name;
-	  if (n === "Map" || n === "Set") return from_1$5(o);
-	  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return arrayLikeToArray(o, minLen);
-	}
-
-	module.exports = _unsupportedIterableToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	unwrapExports(unsupportedIterableToArray);
-
-	var nonIterableRest = createCommonjsModule(function (module) {
-	function _nonIterableRest() {
-	  throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-	}
-
-	module.exports = _nonIterableRest, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	unwrapExports(nonIterableRest);
-
-	var slicedToArray = createCommonjsModule(function (module) {
-	function _slicedToArray(arr, i) {
-	  return arrayWithHoles(arr) || iterableToArrayLimit(arr, i) || unsupportedIterableToArray(arr, i) || nonIterableRest();
-	}
-
-	module.exports = _slicedToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
-	});
-
-	var _slicedToArray = unwrapExports(slicedToArray);
-
-	function MemorizedComponentDemo() {
-	  var _useState = useState(1),
-	      _useState2 = _slicedToArray(_useState, 2),
-	      number = _useState2[0],
-	      dispatch = _useState2[1];
-
-	  return /*#__PURE__*/React.createElement("div", null, number);
-	}
 
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2022-08-11 11:37:54
+	 * @LastEditTime: 2022-09-23 18:08:36
 	 */
 
-	createRoot(document.querySelector("#app")).render( /*#__PURE__*/React.createElement(MemorizedComponentDemo, null)); // createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
+	var legacyCreateRootFromDOMContainer = function legacyCreateRootFromDOMContainer(container) {
+	  return createLegacyRoot(container);
+	};
+
+	var legacyRenderSubtreeIntoContainer = function legacyRenderSubtreeIntoContainer(parentComponent, children, container, callback) {
+	  var _fiberRoot$current$ch3;
+
+	  var root = container._reactRootContainer;
+	  debugger;
+	  var fiberRoot;
+
+	  if (!root) {
+	    //首次挂载
+	    root = container._reactRootContainer = legacyCreateRootFromDOMContainer(container);
+	    fiberRoot = root._internalRoot;
+
+	    unbatchedUpdates(function () {
+	      updateContainer(children, fiberRoot);
+	    }, null);
+	  } else {
+	    throw new Error('Not Implement');
+	  }
+
+	  console.log('fiberRoot', fiberRoot);
+	  return (_fiberRoot$current$ch3 = fiberRoot.current.child) === null || _fiberRoot$current$ch3 === void 0 ? void 0 : _fiberRoot$current$ch3.stateNode;
+	};
+
+	var render = function render(element, container, callback) {
+	  return legacyRenderSubtreeIntoContainer(null, element, container);
+	};
+
+	/*
+	 * @Author: changcheng
+	 * @LastEditTime: 2022-09-23 17:28:53
+	 */
+	render( /*#__PURE__*/React.createElement("div", {
+	  id: "title",
+	  key: "title"
+	}, "\u5185\u5BB9"), document.querySelector("#app")); // createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
+	// createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
 	// createRoot(document.querySelector('#app')!).render(<ChildrenReconcilerDemo />)
 	// createRoot(document.querySelector('#app')!).render(<LayoutEffectDemo />)
 	// createRoot(document.querySelector('#app')!).render(<StateEffectDemo />)

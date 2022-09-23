@@ -119,17 +119,19 @@ const reconcileChildren = (
   renderLanes: Lanes
 ) => {
   if (current === null) {
+    // 初次渲染，不需要比较
     workInProgress.child = mountChildFibers(
-      workInProgress,
+      workInProgress, 
       null,
       nextChildren,
       renderLanes
     )
   } else {
+    // 进行新老内容比较，得到差异进行更新
     workInProgress.child = reconcileChildFibers(
-      workInProgress,
-      current.child,
-      nextChildren,
+      workInProgress, // 新的fiber
+      current.child, // 老fiber的第一个子节点
+      nextChildren, // 新的虚拟dom
       renderLanes
     )
   }

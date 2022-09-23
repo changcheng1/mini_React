@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-08-15 15:10:15
+ * @LastEditTime: 2022-08-15 15:17:19
 -->
 
 ## React 工作循环
@@ -104,7 +104,7 @@
 
 ## setState 是同步还是异步？
 
-- 新版本 React18 全部都是异步批量处理，之前版本两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
+- 新版本 React18 全部都是同步并发模式，React17版本是两种同步和异步，React17 中的 setTimeout 和 promise 是同步，钩子函数中是异步
 
 * React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent并发模式)，所以在 Promise 或者 setTiemout可以实现同步并发
 
@@ -150,15 +150,6 @@
 ## ![avatar](./img/setState.png)
 
 ---
-
-## 父与子组件生命周期执行顺序
-
-- 组件的调用顺序都是先父后子,渲染完成的顺序是先子后父。 组件的销毁操作是先父后子，销毁完成的顺序是先子后父
-
-## ![avatar](./img/eventBubble.png)
-
----
-
 ## Fiber 树
 
 - Fiber 是一个执行单元，每执行一次任务，React 会检查现在还剩多少时间，如果没有就交出控制权

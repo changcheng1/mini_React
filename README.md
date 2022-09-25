@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-09-23 18:57:02
+ * @LastEditTime: 2022-09-25 11:00:00
 -->
 
 ## React 工作循环
@@ -25,6 +25,10 @@ render调用legacyRenderSubtreeIntoContainer，最后createRootImpl会调用到c
 createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl中调用listenToAllSupportedEvents初始化事件注册
 
 创建完Fiber节点后，调用ReactDOMRoot.prototype.render执行updateContainer，然后scheduleUpdateOnFiber异步调度performConcurrentWorkOnRoot进入render阶段和commit阶段
+
++ 不同点
+
+在函数scheduleUpdateOnFiber中根据不同优先级进入不同分支，legacy模式进入performSyncWorkOnRoot，concurrent模式会异步调度performConcurrentWorkOnRoot
 
 ---
 
@@ -75,7 +79,7 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 
 - DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
 
-- 单节点
+- 单节点s
 
   1.新旧节点 type 和 key 都不一样，标记为删除
 

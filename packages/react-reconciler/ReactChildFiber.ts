@@ -75,6 +75,7 @@ const ChildReconciler = (shouldTrackSideEffects: boolean) => {
 
     //一个都不能复用，直接重新创建一个
     const created = createFiberFromElement(element, returnFiber.mode, lanes)
+    // 建立与父级的关系
     created.return = returnFiber
     return created
   }
@@ -569,10 +570,10 @@ const ChildReconciler = (shouldTrackSideEffects: boolean) => {
 
   /**
    * diff函数的入口，更具不同子元素类型，进入不同的分支
-   * @param returnFiber
-   * @param currentFirstChild
-   * @param newChild
-   * @param lanes
+   * @param returnFiber 新的父fiber
+   * @param currentFirstChild 老的第一个fiber
+   * @param newChild  新的虚拟dom
+   * @param lanes 渲染优先级
    * @returns
    */
   const reconcileChildFibers = (
@@ -582,10 +583,11 @@ const ChildReconciler = (shouldTrackSideEffects: boolean) => {
     lanes: Lanes
   ): Fiber | null => {
     const isObject = typeof newChild === 'object' && newChild !== null
-
+    // 说明新的虚拟dom只有一个
     if (isObject) {
       switch (newChild.$$typeof) {
         case REACT_ELEMENT_TYPE: {
+          // placeSingleChild这个函数标记为插入
           return placeSingleChild(
             reconcileSingleElement(
               returnFiber,

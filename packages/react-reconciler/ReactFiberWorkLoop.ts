@@ -136,6 +136,7 @@ const performUnitOfWork = (unitOfWork: Fiber): void => {
   //为对应的fiber节点打上相应的标记比如Update,Placement,ChildDeletion等
   //然后将第一个子节点返回也就是unitOfWork.child
   //因为同级节点直接使用sibling链接所以只用返回第一个就行
+  // 开始构建当前fiber的子fiber链表，他会返回下一个fiber，一般都是大儿子
   next = beginWork(current, unitOfWork, subtreeRenderLanes);
 
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
@@ -207,9 +208,10 @@ const renderRootSync = (root: FiberRoot, lanes: Lanes) => {
   executionContext |= RenderContext;
 
   if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
+    // 这是给workInProgress赋值，并且给Fiber增加alternate属性，添加替身
     prepareFreshStack(root, lanes);
   }
-
+  // 执行工作单元，每个fiber都是一个执行单元，执行单个工作单元
   while (workInProgress !== null) {
     performUnitOfWork(workInProgress);
   }
@@ -224,6 +226,7 @@ const renderRootSync = (root: FiberRoot, lanes: Lanes) => {
 };
 
 const commitRootImpl = (root: FiberRoot): null => {
+
   do {
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
@@ -287,13 +290,11 @@ const commitRootImpl = (root: FiberRoot): null => {
     //BeforeMutation阶段，Class组件会在其中执行getSnapshotBeforeUpdate
     //我们只实现了Function Commponent,以我们的实现无关,可以忽略
     commitBeforeMutationEffects(root, finishedWork);
-
     //Mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作
     commitMutationEffects(root, finishedWork);
 
     //此时的workInProgress树被赋值为current Fiber树
     root.current = finishedWork;
-
     //LayoutEffects阶段，在其中执行useLayoutEffect的create函数
     //这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后
     //此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的
@@ -335,13 +336,13 @@ export const performSyncWorkOnRoot = (root: FiberRoot) => {
   const lanes = getNextLanes(root, NoLanes);
 
   if (!includesSomeLane(lanes, SyncLane)) return null;
-
+  // 根据老的Fiber树创建新的fiber树，然后根据新的Fiber树更新真实dom
   const exitStatus = renderRootSync(root, lanes);
 
   const finishedWork: Fiber | null = root.current.alternate;
 
   root.finishedWork = finishedWork;
-
+  
   commitRoot(root);
 
   return null;
@@ -524,7 +525,6 @@ const workLoopConcurrent = () => {
   //和Sync模式的区别就是，是否加了shouldYield，能在一定
   //时机暂停render过程
   while (workInProgress !== null && !shouldYield()) {
-    debugger;
     performUnitOfWork(workInProgress);
   }
 };
@@ -683,7 +683,7 @@ export const scheduleUpdateOnFiber = (
   } else {
     ensureRootIsScheduled(root, eventTime);
   }
-
+  
   return root;
 };
 

@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-09-22 10:48:34
+ * @LastEditTime: 2022-10-08 21:11:35
  */
 import { createHostRootFiber } from './ReactFiber'
 import { createLaneMap, NoLane, NoLanes, NoTimestamp } from './ReactFiberLane'
@@ -30,15 +30,16 @@ export const createFiberRoot = (
   containerInfo: any,
   tag: RootTag
 ): FiberRoot => {
-  const root: FiberRoot = new FiberRootNode(containerInfo, tag)
+  // 创建真实根节点,containerInfo包含真实dom
+  const fiberRoot: FiberRoot = new FiberRootNode(containerInfo, tag)
   // 创建fiber树的根节点
-  const uninitializedFiber = createHostRootFiber(tag)
+  const hostRootFiber = createHostRootFiber(tag)
   // 当前fiberRoot的current指向根fiber
-  root.current = uninitializedFiber
+  fiberRoot.current = hostRootFiber
   // 让fiber根的真实dom节点指向fiberRoot的div
-  uninitializedFiber.stateNode = root
+  hostRootFiber.stateNode = fiberRoot
 
-  initializeUpdateQueue(uninitializedFiber)
+  initializeUpdateQueue(hostRootFiber)
 
-  return root
+  return fiberRoot
 }

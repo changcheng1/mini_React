@@ -166,6 +166,7 @@ const mountIndeterminateComponent = (
   )
 
   workInProgress.tag = FunctionComponent
+  // 处理子节点，根据老Fiber和新的虚拟Dom进行比较，创建新的Fiber树
   reconcileChildren(null, workInProgress, value, renderLanes)
 
   return workInProgress.child

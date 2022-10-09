@@ -1,6 +1,6 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-09-23 18:08:06
+ * @LastEditTime: 2022-10-09 14:32:32
  */
 import { Container } from '../react-dom/ReactDomRoot'
 import { ReactNodeList } from '../shared/ReactTypes'
@@ -37,7 +37,8 @@ export const updateContainer = (
   element: ReactNodeList,
   container: FiberRoot
 ) => {
-
+  // 获取hostRootFiber fiber根的根节点
+  // 正常来说一个fiber节点会对应一个真实dom节点，hostRootFiber对应的Dom节点就是container也就是root真实dom节点
   const current: Fiber = container.current
   const eventTime = requestEventTime()
   //获得该次更新的优先级如果不处于ConcurrentMode下的话优先级永远都为Sync
@@ -45,7 +46,7 @@ export const updateContainer = (
   //创建一个更新，由于我们只实现了Function类型的组件
   //这种类型的update就只有HostRoot用到了
   const update = createUpdate()
-
+  // 需要渲染的元素
   update.payload = { element }
   enqueueUpdate(current, update)
 

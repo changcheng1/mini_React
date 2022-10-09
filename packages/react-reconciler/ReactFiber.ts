@@ -162,14 +162,17 @@ export const createWorkInProgress = (
     workInProgress.alternate = current
     current.alternate = workInProgress
   } else {
+    // 第一次更新，没有副作用
     workInProgress.pendingProps = pendingProps
     workInProgress.type = current.type
+    // flags是副作用，这是清空副作用
     workInProgress.flags = NoFlags
     workInProgress.subtreeFlags = NoFlags
     workInProgress.deletions = null
   }
 
   workInProgress.lanes = current.lanes
+  // 保存当前的更新对象
   workInProgress.updateQueue = current.updateQueue
   workInProgress.childLanes = current.childLanes
   workInProgress.flags = current.flags
@@ -229,7 +232,13 @@ export const createFiberFromTypeAndProps = (
   fiber.elementType = type
   return fiber
 }
-
+/**
+ * 根据虚拟DOM创建fiber节点
+ * @param element 
+ * @param mode 
+ * @param lanes 
+ * @returns 
+ */
 export const createFiberFromElement = (
   element: ReactElement,
   mode: TypeOfMode,

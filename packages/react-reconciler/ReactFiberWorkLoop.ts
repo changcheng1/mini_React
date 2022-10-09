@@ -51,7 +51,6 @@ import {
   NormalPriority as NormalSchedulerPriority,
 } from "./Scheduler";
 import { enqueueInterleavedUpdates } from "./ReactFiberInterleavedUpdates";
-import { debug } from "console";
 
 type ExecutionContext = number;
 export const NoContext = /*             */ 0b000000;

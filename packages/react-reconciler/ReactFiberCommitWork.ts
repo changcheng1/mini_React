@@ -952,7 +952,7 @@ const commitMutationEffectsOnFiber = (
 const commitMutationEffects_complete = (root: FiberRoot) => {
   while (nextEffect !== null) {
     const fiber = nextEffect
-
+    // 根据flags进行节点处理，删除移动之类的
     commitMutationEffectsOnFiber(fiber, root)
 
     const sibling = fiber.sibling

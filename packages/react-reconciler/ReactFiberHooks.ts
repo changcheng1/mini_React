@@ -1,3 +1,4 @@
+import { debug, log } from 'console';
 import { Dispatcher, Fiber } from './ReactInternalTypes'
 import { ReactSharedInternals } from '../shared/ReactSharedInternals'
 import {
@@ -79,8 +80,13 @@ export type Effect = {
    */
   next: Effect
 }
-
+/**
+ * 因为会有多个hook，指向当前的hook函数，构建单向链表
+ */
 let workInProgressHook: Hook | null = null
+/**
+ * 当前正在工作的fiber，可以理解为是workInProgress
+ */
 let currentlyRenderingFiber: Fiber
 let currentHook: Hook | null = null
 let renderLanes: Lanes = NoLanes
@@ -143,7 +149,6 @@ const dispatchAction = <S, A>(
   const lane = requestUpdateLane(fiber)
   //此次更新触发的事件
   const eventTime = requestEventTime()
-
   const update: Update<S, A> = {
     action,
     next: null as any,
@@ -204,7 +209,7 @@ const dispatchAction = <S, A>(
       }
       queue.pending = update
     }
-
+    
     if (
       fiber.lanes === NoLanes &&
       (alternate === null || alternate.lanes === NoLanes)
@@ -219,6 +224,7 @@ const dispatchAction = <S, A>(
         try {
           const currentState: S = queue.lastRenderedState as any
           const eagerState = lastRenderedReducer(currentState, action)
+          // 如果两次状态一样，不更新
           if (Object.is(eagerState, currentState)) {
             return
           }
@@ -227,7 +233,6 @@ const dispatchAction = <S, A>(
         }
       }
     }
-
     scheduleUpdateOnFiber(fiber, lane, eventTime)
   }
 }
@@ -239,8 +244,9 @@ const basicStateReducer = <S>(state: S, action: BasicStateAction<S>): S => {
 const mountState = <S>(
   initialState: (() => S) | S
 ): [S, Dispatch<BasicStateAction<S>>] => {
+  // 构建单向链表
   const hook = mountWorkInProgressHook()
-
+  // 如果是函数，就执行
   if (typeof initialState === 'function') {
     initialState = (initialState as () => S)()
   }
@@ -254,10 +260,11 @@ const mountState = <S>(
     dispatch: null,
     interleaved: null,
   })
-
+  
+  // 构建单向链表
   const dispatch: Dispatch<BasicStateAction<S>> = (queue.dispatch =
     dispatchAction.bind(null, currentlyRenderingFiber, queue) as any)
-
+    
   return [hook.memoizedState, dispatch]
 }
 
@@ -322,9 +329,9 @@ const updateReducer = <S, I, A>(
   initialArg: I,
   init?: (i: I) => S
 ): [S, Dispatch<A>] => {
+  debugger
   const hook = updateWorkInProgressHook()
   const queue = hook.queue!
-
   queue.lastRenderedReducer = reducer
   const current: Hook = currentHook as any
 
@@ -506,14 +513,14 @@ export const renderWithHooks = <Props, SecondArg>(
   nextRenderLanes: Lanes
 ) => {
   renderLanes = nextRenderLanes
+  // currentlyRenderingFiber为最新的workInProgress
   currentlyRenderingFiber = workInProgress
-
   //Function组件每次update是都会将新的effect挂载在上面，如果
   //不清除那么老的effect会一直存在并被调用
   workInProgress.updateQueue = null
   workInProgress.memoizedState = null
   workInProgress.lanes = NoLanes
-
+  // 用来保存当前的dispatch，这里用来区分是挂载还是更新
   ReactCurrentDispatcher.current =
     current === null || current.memoizedState === null
       ? HooksDispatcherOnMount
@@ -522,6 +529,7 @@ export const renderWithHooks = <Props, SecondArg>(
   let children = Component(props, secondArg)
 
   renderLanes = NoLanes
+  // 执行完函数currentlyRenderingFiber清空
   currentlyRenderingFiber = null as any
 
   /**

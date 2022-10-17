@@ -139,7 +139,7 @@ export const cloneUpdateQueue = <State>(
     workInProgress.updateQueue = clone
   }
 }
-
+// 根据老状态和新状态，通过updateQueue计算新状态
 export const processUpdateQueue = <State>(
   workInProgress: Fiber,
   props: any,

@@ -95,8 +95,9 @@ const completeUnitOfWork = (unitOfWork: Fiber): void => {
   let completedWork: Fiber | null = unitOfWork;
 
   do {
+    // 拿到fiber的替身，也就是老fiber
     const current = completedWork.alternate;
-
+    // 拿到父fiber
     const returnFiber: Fiber | null = completedWork.return;
 
     let next = completeWork(current, completedWork);
@@ -137,10 +138,12 @@ const performUnitOfWork = (unitOfWork: Fiber): void => {
   //因为同级节点直接使用sibling链接所以只用返回第一个就行
   // 开始构建当前fiber的子fiber链表，他会返回下一个fiber，一般都是大儿子
   next = beginWork(current, unitOfWork, subtreeRenderLanes);
-
+  
+  // beginWork后，需要把新属性同步到老属性上面
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
   //进行的是深度优先遍历，next为null说明该节点没有子节点了，对其进行归过程
   if (next === null) {
+    // 完成一个fiber节点
     completeUnitOfWork(unitOfWork);
   } else {
     //将workInProgress赋值为unitOfWork的第一个子节点
@@ -283,7 +286,6 @@ const commitRootImpl = (root: FiberRoot): null => {
   const subtreeHasEffects =
     (finishedWork.subtreeFlags & MutationMask) !== NoFlags;
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
-
   //如果需要root或者他的子树进行操作
   if (rootHasEffect || subtreeHasEffects) {
     //BeforeMutation阶段，Class组件会在其中执行getSnapshotBeforeUpdate

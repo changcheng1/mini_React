@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-09-25 11:00:00
+ * @LastEditTime: 2022-10-17 16:36:46
 -->
 
 ## React 工作循环
@@ -31,6 +31,26 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 在函数scheduleUpdateOnFiber中根据不同优先级进入不同分支，legacy模式进入performSyncWorkOnRoot，concurrent模式会异步调度performConcurrentWorkOnRoot
 
 ---
+
+## Fiber双缓存树
+
+- current Fiber 树当渲染完毕后会生成一个 current Fiber 树
+
+- workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+
+- workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
+
+- 构建完成后为finishedWork，完成的工作
+
+
+## ![avatar](./img/fiber.jpg)
+
+## renderWithHook
+
++ 函数组件hook的首次挂载和更新
+
+## ![avatar](./img/renderWithHook.jpg)
+
 
 ## updateQueue
 
@@ -71,7 +91,6 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
     }while(update !== first){}
   }
 ```
-接下来通过updateContainer方法把虚拟DomElement变成真实dom插入到container中
 
 ---
 
@@ -126,9 +145,6 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 ---
 
 ## 事件代理
-
-
-![avatar](./img/maopao.jpg)
 
 + <font color="orange">捕获事件是先注册先执行，冒泡事件是先注册后执行</font>
 
@@ -204,26 +220,6 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
      });
 ```
 
-## ![avatar](./img/setState.png)
-
 ---
-## Fiber 树
-
-- Fiber 是一个执行单元，每执行一次任务，React 会检查现在还剩多少时间，如果没有就交出控制权
-
-## ![avatar](./img/fiberFlow.png)
-
-- beginWork 方法进行深度优先遍历，调用 reconcileChildren 方法，从 root 节点，while 循环深度优先所有的儿子，构建 fiber 树，然后 while 结束通过调用 completeUnitWork 方法往上遍历
-
-## ![avatar](./img/fiberSimple.png)
-
-- current Fiber 树当渲染完毕后会生成一个 current Fiber 树
-
-- workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
-
-- workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
-
-## ![avatar](./img/fiber.jpg)
-
 
 参考链接 [React 技术解密](https://react.iamkasong.com/) https://react.iamkasong.com/

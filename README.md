@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-10-17 16:36:46
+ * @LastEditTime: 2022-11-15 10:54:14
 -->
 
 ## React 工作循环
@@ -43,16 +43,50 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 - 构建完成后为finishedWork，完成的工作
 
 
-## ![avatar](./img/fiber.jpg)
+## ![avatar](./img/renderRootFiber.jpg)
+---
 
-## renderWithHook
+fiber更新逻辑
 
-+ 函数组件hook的首次挂载和更新
+## ![avatar](./img/fiberUpdate.jpg)
+
+
+---
+
+
+## 函数渲染流程
+
++ 函数组件首次挂载，在renderWithHook中useState初始化，调用useStateOnMout,其他hook同理，声明currentlyRenderingFiber为workInProgress，同时调用mountWorkInProgressHook构建单向链表，判断是创建新的对应hook还是进行单向连接，返回workInProgressHook，声明queue队列，调用dispatchAction，将update加入queue队列，同时判断state值，判断是否跳过后续的scheduleUpdateOnFiber逻辑
 
 ## ![avatar](./img/renderWithHook.jpg)
 
+---
 
-## updateQueue
+Fiber结构在函数中使用useState首次挂载
+
+Function Component自己是没有状态的，它的状态来源于每次执行函数时，useState返回的内容
+
+每个useState对应一个hook对象，当Funtion Component首次渲染时，会把所有的调用到的useState对应的hook对象，以链表的形式挂载到Fiber对应的memoizedState中,hook通过执行之后返回值得到状态和更改状态的方法
+
+## ![avatar](./img/useStateMount.png)
+
+---
+
+多次通过useState调用更新
+
+函数组件多次通过useState调用更新，通过Fiber的memoizedState的queue，构建多次调用更新的链表
+
+## ![avatar](./img/memoizedStateQueue.png)
+
+---
+
+ 函数组件的更新
+
+## ![avatar](./img/hookUpdate.jpg)
+
+---
+
+ dispatchAction如何执行？
 
 ![avatar](./img/createUpdateQueue.png)
 
@@ -91,14 +125,54 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
     }while(update !== first){}
   }
 ```
+---
+## setState 是同步还是异步？
 
+- 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
+
+* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent异步模式)
+
+- React 在执行 setState 的时候会把更新的内容放入队列
+
+- 在事件执行结束后会计算 state 的数据，然后执行回调
+
+- 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
+
+* 优点
+
+  1.为保持内部一致性，如果改为同步更新的方式，尽管 setState 变成了同步，但是 props 不是
+
+  2.为后续的架构升级启用并发更新，React 会在 setState 时，根据它们的数据来源分配不用的优先级，这些数据来源有：事件回调句柄，动画效果等，再根据优先级并发处理，提升渲染性能
+
+  3.setState 设计为异步，可以显著提升性能(非合成事件和钩子函数当中是同步的，例如 Promise 中就是同步)，使用 batchedUpdates 可以已经批量更新
+
+```javaScript
+     this.setState({ count: this.state.count + 1 });
+     console.log(this.state.count); // 批量更新所以是 0
+     this.setState({ count: this.state.count + 1 });
+     console.log(this.state.count); // 批量更新所以是 0
+     setTimeout(() => {
+        this.setState({ count: this.state.count + 1 });
+        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步2
+        this.setState({ count: this.state.count + 1 });
+        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
+     });
+```
 ---
 
 ## DomDiff
 
-- DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
+DomDiff的三个原则
 
-- 单节点s
+1.只对同级元素进行比较
+
+2.不同的类型对应不同的元素
+
+3.可以通过key来标识同一个节点
+
+DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
+
+<font color="orange">单节点</font>
 
   1.新旧节点 type 和 key 都不一样，标记为删除
 
@@ -108,9 +182,9 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
   3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
   直接把老的节点全部删除
 
-![avatar](./img/singleDomDiff.png)
+![avatar](./img/singleDomDiff.jpg)
 
-- 多节点
+<font color="orange">多节点</font>
 
   1.如果新的节点有多个的话
   我们经过二轮遍历
@@ -152,14 +226,15 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 
 + 新版本在createRoot时，会调用createImpl，在root节点listenToAllSupportedEvents直接初始化事件系统
 
-+ 先React捕获，再原生捕获，先原生冒泡再React冒泡
++ 事件的原则不管是捕获阶段还是冒泡阶段，都是先注册，先执行
 
 ```javaScript
-  // result:
+  // result:事件是先注册先执行
   // 父元素React事件捕获
   // 子元素React事件捕获
   // 父元素原生事件捕获
   // 子元素原生事件捕获
+  
   // 子元素原生事件冒泡
   // 父元素原生事件冒泡
   // 子元素React事件冒泡
@@ -187,39 +262,5 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 
 ---
 
-## setState 是同步还是异步？
-
-- 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
-
-* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent异步模式)
-
-- React 在执行 setState 的时候会把更新的内容放入队列
-
-- 在事件执行结束后会计算 state 的数据，然后执行回调
-
-- 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
-
-* 优点
-
-  1.为保持内部一致性，如果改为同步更新的方式，尽管 setState 变成了同步，但是 props 不是
-
-  2.为后续的架构升级启用并发更新，React 会在 setState 时，根据它们的数据来源分配不用的优先级，这些数据来源有：事件回调句柄，动画效果等，再根据优先级并发处理，提升渲染性能
-
-  3.setState 设计为异步，可以显著提升性能(非合成事件和钩子函数当中是同步的，例如 Promise 中就是同步)，使用 batchedUpdates 可以已经批量更新
-
-```javaScript
-     this.setState({ count: this.state.count + 1 });
-     console.log(this.state.count); // 批量更新所以是 0
-     this.setState({ count: this.state.count + 1 });
-     console.log(this.state.count); // 批量更新所以是 0
-     setTimeout(() => {
-        this.setState({ count: this.state.count + 1 });
-        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步2
-        this.setState({ count: this.state.count + 1 });
-        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
-     });
-```
-
----
 
 参考链接 [React 技术解密](https://react.iamkasong.com/) https://react.iamkasong.com/

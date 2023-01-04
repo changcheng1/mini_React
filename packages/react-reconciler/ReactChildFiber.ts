@@ -73,7 +73,7 @@ const ChildReconciler = (shouldTrackSideEffects: boolean) => {
       child = child.sibling
     }
 
-    //一个都不能复用，直接重新创建一个
+    //一个都不能复用，直接重新创建一个，根据jsx创建fiber节点
     const created = createFiberFromElement(element, returnFiber.mode, lanes)
     // 建立与父级的关系
     created.return = returnFiber

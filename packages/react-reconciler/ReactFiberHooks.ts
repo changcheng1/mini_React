@@ -37,10 +37,25 @@ type BasicStateAction<S> = ((a: S) => S) | S
 type Dispatch<A> = (a: A) => void
 
 export type Hook = {
+  /**
+   * 下一个hook
+   */
   next: Hook | null
+   /**
+   * 最新值
+   */
   memoizedState: any
+  /**
+   * 用于更新的优先级
+   */
   baseState: any
+  /**
+   * 新的updateQueue
+   */
   queue: UpdateQueue<any, any> | null
+   /**
+   * 用于更新的优先级
+   */
   baseQueue: Update<any, any> | null
 }
 
@@ -80,45 +95,21 @@ export type Effect = {
    */
   next: Effect
 }
+
+/**
+ * 当前正在工作的fiber，其实就是workInProgress
+ */
+let currentlyRenderingFiber: Fiber
 /**
  * 因为会有多个hook，指向当前的hook函数，构建单向链表
  */
-let workInProgressHook: Hook | null = null
+ let workInProgressHook: Hook | null = null
 /**
- * 当前正在工作的fiber，可以理解为是workInProgress
+ * 当前老Hook的，第一次为null，根据current.memoizedState，也就是Hook链表
  */
-let currentlyRenderingFiber: Fiber
 let currentHook: Hook | null = null
 let renderLanes: Lanes = NoLanes
 
-/**
- * 所有Hook函数(useState, useEffect, useLayoutEffect)在Mount时都会调用的函数，用来创建一个Hook，并且把他
- * 和前面的Hook连接起来
- * @returns 返回当前创建的新Hook
- */
-const mountWorkInProgressHook = (): Hook => {
-  const hook: Hook = {
-    next: null,
-    memoizedState: null,
-    baseState: null,
-    queue: null,
-    baseQueue: null,
-  }
-
-  if (workInProgressHook === null) {
-    /**
-     * 这是第一个被创建的Hook把他放到Function组件fiber的memoizedState中
-     */
-    currentlyRenderingFiber.memoizedState = workInProgressHook = hook
-  } else {
-    /**
-     * 不是第一个Hook，把他放到前面Hook的next中
-     */
-    workInProgressHook = workInProgressHook.next = hook
-  }
-
-  return workInProgressHook
-}
 
 type Update<S, A> = {
   action: A
@@ -144,6 +135,7 @@ const dispatchAction = <S, A>(
   queue: UpdateQueue<S, A>,
   action: A
 ) => {
+  // 先获取fiber的替身
   const alternate = fiber.alternate
   //获取此次更新的优先级
   const lane = requestUpdateLane(fiber)
@@ -244,13 +236,13 @@ const basicStateReducer = <S>(state: S, action: BasicStateAction<S>): S => {
 const mountState = <S>(
   initialState: (() => S) | S
 ): [S, Dispatch<BasicStateAction<S>>] => {
-  // 构建单向链表
+  // 复制workInProgressFiber
   const hook = mountWorkInProgressHook()
   // 如果是函数，就执行
   if (typeof initialState === 'function') {
     initialState = (initialState as () => S)()
   }
-
+  // 给Fiber设置memoizedState
   hook.memoizedState = hook.baseState = initialState
 
   const queue = (hook.queue = {
@@ -261,13 +253,39 @@ const mountState = <S>(
     interleaved: null,
   })
   
-  // 构建单向链表
   const dispatch: Dispatch<BasicStateAction<S>> = (queue.dispatch =
     dispatchAction.bind(null, currentlyRenderingFiber, queue) as any)
-    
+  // 这里的Hook相当于形成了闭包
   return [hook.memoizedState, dispatch]
 }
+/**
+ * 所有Hook函数(useState, useEffect, useLayoutEffect)在Mount时都会调用的函数，用来创建一个Hook，并且把他
+ * 和前面的Hook连接起来
+ * @returns 返回当前创建的新Hook
+ */
+ const mountWorkInProgressHook = (): Hook => {
+  const hook: Hook = {
+    next: null,
+    memoizedState: null,
+    baseState: null,
+    queue: null,
+    baseQueue: null,
+  }
 
+  if (workInProgressHook === null) {
+    /**
+     * 这是第一个被创建的Hook把他放到Function组件fiber的memoizedState中
+     */
+    currentlyRenderingFiber.memoizedState = workInProgressHook = hook
+  } else {
+    /**
+     * 不是第一个Hook，把他放到前面Hook的next中
+     */
+    workInProgressHook = workInProgressHook.next = hook
+  }
+
+  return workInProgressHook
+}
 /**
  * 从current hook中复制获得workInProgressHook
  * 每复制一个就将current hook向前移动至下一个hook
@@ -278,9 +296,10 @@ const updateWorkInProgressHook = (): Hook => {
 
   if (currentHook === null) {
     //第一次调用该函数currentHook还为空，从current的memoizedState中
-    //得到第一个hook
+    //得到新fiber的替身，老iber
     const current = currentlyRenderingFiber.alternate
     if (current !== null) {
+      // 得到老fiber的hook链表
       nextCurrentHook = current.memoizedState
     } else {
       throw new Error('Not Implement')
@@ -296,6 +315,7 @@ const updateWorkInProgressHook = (): Hook => {
   //保留他的原因是为了能在触发special case的时候能获得报错时的调用栈
   //信息，不仅在这里，整个代码里的所有手动抛出的Not Implement错误都是因为
   //这个原因,这样使问题调试，和新功能的添加都变得非常容易
+  // 说明这是第一个hook
   if (workInProgressHook === null) {
     nextWorkInProgressHook = currentlyRenderingFiber.memoizedState
   } else {
@@ -307,7 +327,7 @@ const updateWorkInProgressHook = (): Hook => {
   } else {
     currentHook = nextCurrentHook!
     const newHook: Hook = {
-      memoizedState: currentHook.memoizedState,
+      memoizedState: currentHook.memoizedState, //拿hook上面的状态
       baseState: currentHook.baseState,
       queue: currentHook.queue,
       next: null,
@@ -329,16 +349,19 @@ const updateReducer = <S, I, A>(
   initialArg: I,
   init?: (i: I) => S
 ): [S, Dispatch<A>] => {
-  debugger
+  // 通过老hook创建新的hook对象，这里通过老Fiber的memoizedState，拿老状态
   const hook = updateWorkInProgressHook()
+  // 拿到hook的更新队列
   const queue = hook.queue!
+  // 上一个reducer方法
   queue.lastRenderedReducer = reducer
+  // 当前的hook
   const current: Hook = currentHook as any
-
+  // 更新队列
   let baseQueue = current.baseQueue
-
+  // update的环状链表
   const pendingQueue = queue.pending
-
+  // 根据老状态和更新队列里的更新对象计算新状态
   if (pendingQueue !== null) {
     if (baseQueue !== null) {
       /** 假设此时的baseQueue为下面的链表,则baseFirst为1
@@ -347,6 +370,7 @@ const updateReducer = <S, I, A>(
        * |    ↓
        * 2 <- 1
        */
+      // 拿到一个更新对象
       const baseFirst = baseQueue.next
 
       /** 假设此时的pendingQueue为下面的链表,则pendingFirst为3
@@ -381,7 +405,9 @@ const updateReducer = <S, I, A>(
   }
 
   if (baseQueue !== null) {
+    // 第一个更新对象
     const first = baseQueue.next
+    // 拿到新状态
     let newState = current.baseState
 
     let newBaseState = null
@@ -397,7 +423,7 @@ const updateReducer = <S, I, A>(
         /**
          * 没有足够的优先级，跳过这个update,如果这个是第一个跳过的更新，那么
          * 为了保证打乱更新顺序后，状态更新的正确性
-         * 会从第一个跳过的update开始把他们全部接在baseQueue上
+         * 会从第一个跳过的update开始把他们全部接在baseQueue上 
          * 比如以下例子，在pendingQueue中有三个更新，且假设此时的state为0
          * {                  {                                {
          *   lane: 16, ---->      lane: 1,               ---->    lane: 16,
@@ -459,12 +485,13 @@ const updateReducer = <S, I, A>(
           newBaseQueueLast.next = clone
           newBaseQueueLast = clone
         }
-
+        // 获取更新的action对象 {type:'ADD'}
         const action = update.action
         newState = reducer(newState, action)
       }
 
       update = update.next
+    // 当首尾相当就终于循环
     } while (update !== null && update !== first)
 
     if (newBaseQueueLast === null) {
@@ -472,7 +499,6 @@ const updateReducer = <S, I, A>(
     } else {
       newBaseQueueLast.next = newBaseQueueFirst!
     }
-
     if (!Object.is(newState, hook.memoizedState)) {
       /**
        * 非常重要的逻辑判断，他决定了是否能执行bailoutHooks逻辑
@@ -481,10 +507,11 @@ const updateReducer = <S, I, A>(
        */
       markWorkInProgressReceivedUpdate()
     }
+    // 赋值新属性
     hook.memoizedState = newState
     hook.baseState = newBaseState
     hook.baseQueue = newBaseQueueLast
-
+    // 保存上一个状态
     queue.lastRenderedState = newState
   }
 
@@ -497,7 +524,7 @@ const updateReducer = <S, I, A>(
   const dispatch: Dispatch<A> = queue.dispatch!
   return [hook.memoizedState, dispatch]
 }
-
+// setState其实是useReducer实现的
 const updateState = <S>(
   initialState: (() => S) | S
 ): [S, Dispatch<BasicStateAction<S>>] => {

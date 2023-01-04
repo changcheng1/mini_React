@@ -143,6 +143,7 @@ const performUnitOfWork = (unitOfWork: Fiber): void => {
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
   //进行的是深度优先遍历，next为null说明该节点没有子节点了，对其进行归过程
   if (next === null) {
+    
     // 完成一个fiber节点
     completeUnitOfWork(unitOfWork);
   } else {
@@ -228,7 +229,6 @@ const renderRootSync = (root: FiberRoot, lanes: Lanes) => {
 };
 
 const commitRootImpl = (root: FiberRoot): null => {
-
   do {
     flushPassiveEffects();
   } while (rootWithPendingPassiveEffects !== null);
@@ -290,6 +290,7 @@ const commitRootImpl = (root: FiberRoot): null => {
   if (rootHasEffect || subtreeHasEffects) {
     //BeforeMutation阶段，Class组件会在其中执行getSnapshotBeforeUpdate
     //我们只实现了Function Commponent,以我们的实现无关,可以忽略
+    console.log(root);
     commitBeforeMutationEffects(root, finishedWork);
     //Mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作
     commitMutationEffects(root, finishedWork);
@@ -343,7 +344,7 @@ export const performSyncWorkOnRoot = (root: FiberRoot) => {
   const finishedWork: Fiber | null = root.current.alternate;
 
   root.finishedWork = finishedWork;
-  
+  // 提交，根据flags副作用标识进行节点操作
   commitRoot(root);
 
   return null;

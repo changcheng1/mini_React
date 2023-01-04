@@ -236,7 +236,7 @@ export const processUpdateQueue = <State>(
 
     queue.firstBaseUpdate = newFirstBaseUpdate
     queue.lastBaseUpdate = newLastBaseUpdate
-
+    // 当前工作的fiber设置新状态
     workInProgress.memoizedState = newState
   }
 }

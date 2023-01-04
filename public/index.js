@@ -2822,14 +2822,17 @@
 	    workInProgress.alternate = current;
 	    current.alternate = workInProgress;
 	  } else {
+	    // 第一次更新，没有副作用
 	    workInProgress.pendingProps = pendingProps;
-	    workInProgress.type = current.type;
+	    workInProgress.type = current.type; // flags是副作用，这是清空副作用
+
 	    workInProgress.flags = NoFlags;
 	    workInProgress.subtreeFlags = NoFlags;
 	    workInProgress.deletions = null;
 	  }
 
-	  workInProgress.lanes = current.lanes;
+	  workInProgress.lanes = current.lanes; // 保存当前的更新对象
+
 	  workInProgress.updateQueue = current.updateQueue;
 	  workInProgress.childLanes = current.childLanes;
 	  workInProgress.flags = flags$2(current);
@@ -2885,6 +2888,14 @@
 	  fiber.elementType = type;
 	  return fiber;
 	};
+	/**
+	 * 根据虚拟DOM创建fiber节点
+	 * @param element 
+	 * @param mode 
+	 * @param lanes 
+	 * @returns 
+	 */
+
 	var createFiberFromElement = function createFiberFromElement(element, mode, lanes) {
 	  var type = element.type;
 	  var key = element.key;
@@ -3054,7 +3065,8 @@
 	    };
 	    workInProgress.updateQueue = clone;
 	  }
-	};
+	}; // 根据老状态和新状态，通过updateQueue计算新状态
+
 	var processUpdateQueue = function processUpdateQueue(workInProgress, props, instance) {
 	  var queue = workInProgress.updateQueue;
 	  var firstBaseUpdate = queue.firstBaseUpdate;
@@ -3130,7 +3142,8 @@
 
 	    queue.baseState = newBaseState;
 	    queue.firstBaseUpdate = newFirstBaseUpdate;
-	    queue.lastBaseUpdate = newLastBaseUpdate;
+	    queue.lastBaseUpdate = newLastBaseUpdate; // 当前工作的fiber设置新状态
+
 	    workInProgress.memoizedState = newState;
 	  }
 	};
@@ -3188,15 +3201,16 @@
 
 
 	var createFiberRoot = function createFiberRoot(containerInfo, tag) {
-	  var root = new FiberRootNode(containerInfo, tag); // 创建fiber树的根节点
+	  // 创建真实根节点,containerInfo包含真实dom
+	  var fiberRoot = new FiberRootNode(containerInfo, tag); // 创建fiber树的根节点
 
-	  var uninitializedFiber = createHostRootFiber(tag); // 当前fiberRoot的current指向根fiber
+	  var hostRootFiber = createHostRootFiber(tag); // 当前fiberRoot的current指向根fiber
 
-	  root.current = uninitializedFiber; // 让fiber根的真实dom节点指向fiberRoot的div
+	  fiberRoot.current = hostRootFiber; // 让fiber根的真实dom节点指向fiberRoot的div
 
-	  uninitializedFiber.stateNode = root;
-	  initializeUpdateQueue(uninitializedFiber);
-	  return root;
+	  hostRootFiber.stateNode = fiberRoot;
+	  initializeUpdateQueue(hostRootFiber);
+	  return fiberRoot;
 	};
 
 	var $Function = Function;
@@ -4131,13 +4145,29 @@
 
 	var _context;
 
+	/*
+	 * @Author: changcheng
+	 * @LastEditTime: 2022-10-25 20:27:08
+	 */
 	var randomKey = slice$3(_context = Math.random().toString(36)).call(_context, 2);
 
 	var internalPropsKey = '__reactProps$' + randomKey;
 	var internalInstanceKey = '__reactFiber$' + randomKey;
+	/**
+	 * 从真实DOM找到属性对象
+	 * @param targetNode 
+	 * @returns 
+	 */
+
 	var getFiberCurrentPropsFromNode = function getFiberCurrentPropsFromNode(node) {
 	  return node[internalPropsKey];
 	};
+	/**
+	 * 从真实DOM找到fiber实例
+	 * @param targetNode 
+	 * @returns 
+	 */
+
 	var getClosestInstanceFromNode = function getClosestInstanceFromNode(targetNode) {
 	  var targetInst = targetNode[internalInstanceKey];
 	  return targetInst !== null && targetInst !== void 0 ? targetInst : null;
@@ -4202,21 +4232,8 @@
 
 	var forEach$4 = forEach$3;
 
-	var addEventCaptureListenerWithPassiveFlag = function addEventCaptureListenerWithPassiveFlag(target, eventType, listener, passive) {
-	  target.addEventListener(eventType, listener, {
-	    capture: true,
-	    passive: passive
-	  });
-	  return listener;
-	};
 	var addEventCaptureListener = function addEventCaptureListener(target, eventType, listener) {
 	  target.addEventListener(eventType, listener, true);
-	  return listener;
-	};
-	var addEventBubbleListenerWithPassiveFlag = function addEventBubbleListenerWithPassiveFlag(target, eventType, listener, passive) {
-	  target.addEventListener(eventType, listener, {
-	    passive: passive
-	  });
 	  return listener;
 	};
 	var addEventBubbleListener = function addEventBubbleListener(target, eventType, listener) {
@@ -4308,7 +4325,7 @@
 	  registerSimpleEvent('focusout', 'onBlur');
 	};
 
-	var createSyntheticEvent = function createSyntheticEvent() {
+	var createSyntheticEvent = function createSyntheticEvent(Interface) {
 	  var SyntheticBaseEvent = /*#__PURE__*/_createClass(function SyntheticBaseEvent(reactName, reactEventType, targetInst, nativeEvent, nativeEventTarget) {
 	    _classCallCheck(this, SyntheticBaseEvent);
 
@@ -4326,13 +4343,35 @@
 	    this._targetInst = targetInst;
 	    this.type = reactEventType;
 	    this.nativeEvent = nativeEvent;
-	    this.target = nativeEventTarget;
-	  });
+	    this.target = nativeEventTarget; //选择性的把原生事件对象上的属性，拷贝到合成事件对象实例
+	    //   for(const propName in Interface){
+	    //     this[propName]=nativeEvent[propName];
+	    //   }
+	    //  this.isDefaultPrevented = functionThatReturnsFalse;//是否阻止了默认事件
+	    //  this.isPropagationStopped = functionThatReturnsFalse;//是否阻止冒泡了
+	  }); // 源码这里做polyfill兼容处理，
+	  // Object.assign(SyntheticBaseEvent.prototype, {
+	  //   preventDefault() {},
+	  //   stopPropagation() {},
+	  // });
+
 
 	  return SyntheticBaseEvent;
 	};
+	/**
+	 * 合成默认事件
+	 */
+
 	var SyntheticEvent = createSyntheticEvent();
+	/**
+	 * 合成鼠标事件
+	 */
+
 	var SyntheticMouseEvent = createSyntheticEvent();
+	/**
+	 * 合成键盘事件
+	 */
+
 	var SyntheticKeyboardEvent = createSyntheticEvent();
 
 	var extractEvents = function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
@@ -4565,24 +4604,14 @@
 
 	var addTrappedEventListener = function addTrappedEventListener(targetContainer, domEventName, eventSystemFlags, isCapturePhaseListener) {
 	  var listener = createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags);
-	  var isPassiveListener = undefined;
-
-	  if (domEventName === 'wheel' || domEventName === 'touchmove' || domEventName === 'touchstart') {
-	    isPassiveListener = true;
-	  }
-
 	  var unsubscribeListener;
 
 	  if (isCapturePhaseListener) {
-	    if (isPassiveListener !== undefined) {
-	      unsubscribeListener = addEventCaptureListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
-	    } else {
+	    {
 	      unsubscribeListener = addEventCaptureListener(targetContainer, domEventName, listener);
 	    }
 	  } else {
-	    if (isPassiveListener !== undefined) {
-	      unsubscribeListener = addEventBubbleListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
-	    } else {
+	    {
 	      unsubscribeListener = addEventBubbleListener(targetContainer, domEventName, listener);
 	    }
 	  }
@@ -4613,16 +4642,11 @@
 	var listenToAllSupportedEvents = function listenToAllSupportedEvents(rootContainerElement) {
 	  if (!rootContainerElement[listeningMarker]) {
 	    forEach$4(allNativeEvents).call(allNativeEvents, function (domEventName) {
-	      /**
-	       * 单独处理selectionchange因为他不会冒泡，而且需要设置在document上
-	       */
-	      if (domEventName !== 'selectionchange') {
-	        if (!nonDelegatedEvents.has(domEventName)) {
-	          listenToNativeEvent(domEventName, false, rootContainerElement);
-	        }
-
-	        listenToNativeEvent(domEventName, true, rootContainerElement);
+	      if (!nonDelegatedEvents.has(domEventName)) {
+	        listenToNativeEvent(domEventName, false, rootContainerElement);
 	      }
+
+	      listenToNativeEvent(domEventName, true, rootContainerElement);
 	    });
 	  }
 	};
@@ -5633,10 +5657,11 @@
 
 
 	      child = child.sibling;
-	    } //一个都不能复用，直接重新创建一个
+	    } //一个都不能复用，直接重新创建一个，根据jsx创建fiber节点
 
 
-	    var created = createFiberFromElement(element, returnFiber.mode, lanes);
+	    var created = createFiberFromElement(element, returnFiber.mode, lanes); // 建立与父级的关系
+
 	    created["return"] = returnFiber;
 	    return created;
 	  };
@@ -6075,21 +6100,22 @@
 	  };
 	  /**
 	   * diff函数的入口，更具不同子元素类型，进入不同的分支
-	   * @param returnFiber
-	   * @param currentFirstChild
-	   * @param newChild
-	   * @param lanes
+	   * @param returnFiber 新的父fiber
+	   * @param currentFirstChild 老的第一个fiber
+	   * @param newChild  新的虚拟dom
+	   * @param lanes 渲染优先级
 	   * @returns
 	   */
 
 
 	  var reconcileChildFibers = function reconcileChildFibers(returnFiber, currentFirstChild, newChild, lanes) {
-	    var isObject = _typeof(newChild) === 'object' && newChild !== null;
+	    var isObject = _typeof(newChild) === 'object' && newChild !== null; // 说明新的虚拟dom只有一个
 
 	    if (isObject) {
 	      switch (newChild.$$typeof) {
 	        case REACT_ELEMENT_TYPE:
 	          {
+	            // placeSingleChild这个函数标记为插入
 	            return placeSingleChild(reconcileSingleElement(returnFiber, currentFirstChild, newChild, lanes));
 	          }
 	      }
@@ -6229,41 +6255,25 @@
 	};
 
 	var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
-	var workInProgressHook = null;
-	var currentlyRenderingFiber;
-	var currentHook = null;
-	var renderLanes = NoLanes;
+
 	/**
-	 * 所有Hook函数(useState, useEffect, useLayoutEffect)在Mount时都会调用的函数，用来创建一个Hook，并且把他
-	 * 和前面的Hook连接起来
-	 * @returns 返回当前创建的新Hook
+	 * 当前正在工作的fiber，其实就是workInProgress
+	 */
+	var currentlyRenderingFiber;
+	/**
+	 * 因为会有多个hook，指向当前的hook函数，构建单向链表
 	 */
 
-	var mountWorkInProgressHook = function mountWorkInProgressHook() {
-	  var hook = {
-	    next: null,
-	    memoizedState: null,
-	    baseState: null,
-	    queue: null,
-	    baseQueue: null
-	  };
+	var workInProgressHook = null;
+	/**
+	 * 当前老Hook的，第一次为null，根据current.memoizedState，也就是Hook链表
+	 */
 
-	  if (workInProgressHook === null) {
-	    /**
-	     * 这是第一个被创建的Hook把他放到Function组件fiber的memoizedState中
-	     */
-	    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
-	  } else {
-	    /**
-	     * 不是第一个Hook，把他放到前面Hook的next中
-	     */
-	    workInProgressHook = workInProgressHook.next = hook;
-	  }
-
-	  return workInProgressHook;
-	};
+	var currentHook = null;
+	var renderLanes = NoLanes;
 
 	var dispatchAction = function dispatchAction(fiber, queue, action) {
+	  // 先获取fiber的替身
 	  var alternate = fiber.alternate; //获取此次更新的优先级
 
 	  var lane = requestUpdateLane(fiber); //此次更新触发的事件
@@ -6340,7 +6350,7 @@
 	      if (lastRenderedReducer !== null) {
 	        try {
 	          var currentState = queue.lastRenderedState;
-	          var eagerState = lastRenderedReducer(currentState, action);
+	          var eagerState = lastRenderedReducer(currentState, action); // 如果两次状态一样，不更新
 
 	          if (is$2(eagerState, currentState)) {
 	            return;
@@ -6359,11 +6369,13 @@
 	};
 
 	var mountState = function mountState(initialState) {
-	  var hook = mountWorkInProgressHook();
+	  // 复制workInProgressFiber
+	  var hook = mountWorkInProgressHook(); // 如果是函数，就执行
 
 	  if (typeof initialState === 'function') {
 	    initialState = initialState();
-	  }
+	  } // 给Fiber设置memoizedState
+
 
 	  hook.memoizedState = hook.baseState = initialState;
 	  var queue = hook.queue = {
@@ -6374,9 +6386,40 @@
 	    interleaved: null
 	  };
 
-	  var dispatch = queue.dispatch = bind$5(dispatchAction).call(dispatchAction, null, currentlyRenderingFiber, queue);
+	  var dispatch = queue.dispatch = bind$5(dispatchAction).call(dispatchAction, null, currentlyRenderingFiber, queue); // 这里的Hook相当于形成了闭包
+
 
 	  return [hook.memoizedState, dispatch];
+	};
+	/**
+	 * 所有Hook函数(useState, useEffect, useLayoutEffect)在Mount时都会调用的函数，用来创建一个Hook，并且把他
+	 * 和前面的Hook连接起来
+	 * @returns 返回当前创建的新Hook
+	 */
+
+
+	var mountWorkInProgressHook = function mountWorkInProgressHook() {
+	  var hook = {
+	    next: null,
+	    memoizedState: null,
+	    baseState: null,
+	    queue: null,
+	    baseQueue: null
+	  };
+
+	  if (workInProgressHook === null) {
+	    /**
+	     * 这是第一个被创建的Hook把他放到Function组件fiber的memoizedState中
+	     */
+	    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+	  } else {
+	    /**
+	     * 不是第一个Hook，把他放到前面Hook的next中
+	     */
+	    workInProgressHook = workInProgressHook.next = hook;
+	  }
+
+	  return workInProgressHook;
 	};
 	/**
 	 * 从current hook中复制获得workInProgressHook
@@ -6390,10 +6433,11 @@
 
 	  if (currentHook === null) {
 	    //第一次调用该函数currentHook还为空，从current的memoizedState中
-	    //得到第一个hook
+	    //得到新fiber的替身，老iber
 	    var current = currentlyRenderingFiber.alternate;
 
 	    if (current !== null) {
+	      // 得到老fiber的hook链表
 	      nextCurrentHook = current.memoizedState;
 	    } else {
 	      throw new Error('Not Implement');
@@ -6407,6 +6451,7 @@
 	  //保留他的原因是为了能在触发special case的时候能获得报错时的调用栈
 	  //信息，不仅在这里，整个代码里的所有手动抛出的Not Implement错误都是因为
 	  //这个原因,这样使问题调试，和新功能的添加都变得非常容易
+	  // 说明这是第一个hook
 
 	  if (workInProgressHook === null) {
 	    nextWorkInProgressHook = currentlyRenderingFiber.memoizedState;
@@ -6420,6 +6465,7 @@
 	    currentHook = nextCurrentHook;
 	    var newHook = {
 	      memoizedState: currentHook.memoizedState,
+	      //拿hook上面的状态
 	      baseState: currentHook.baseState,
 	      queue: currentHook.queue,
 	      next: null,
@@ -6437,12 +6483,18 @@
 	};
 
 	var updateReducer = function updateReducer(reducer, initialArg, init) {
-	  var hook = updateWorkInProgressHook();
-	  var queue = hook.queue;
-	  queue.lastRenderedReducer = reducer;
-	  var current = currentHook;
-	  var baseQueue = current.baseQueue;
-	  var pendingQueue = queue.pending;
+	  // 通过老hook创建新的hook对象，这里通过老Fiber的memoizedState，拿老状态
+	  var hook = updateWorkInProgressHook(); // 拿到hook的更新队列
+
+	  var queue = hook.queue; // 上一个reducer方法
+
+	  queue.lastRenderedReducer = reducer; // 当前的hook
+
+	  var current = currentHook; // 更新队列
+
+	  var baseQueue = current.baseQueue; // update的环状链表
+
+	  var pendingQueue = queue.pending; // 根据老状态和更新队列里的更新对象计算新状态
 
 	  if (pendingQueue !== null) {
 	    if (baseQueue !== null) {
@@ -6452,6 +6504,7 @@
 	       * |    ↓
 	       * 2 <- 1
 	       */
+	      // 拿到一个更新对象
 	      var baseFirst = baseQueue.next;
 	      /** 假设此时的pendingQueue为下面的链表,则pendingFirst为3
 	       *  ————
@@ -6485,7 +6538,9 @@
 	  }
 
 	  if (baseQueue !== null) {
-	    var first = baseQueue.next;
+	    // 第一个更新对象
+	    var first = baseQueue.next; // 拿到新状态
+
 	    var newState = current.baseState;
 	    var newBaseState = null;
 	    var newBaseQueueFirst = null;
@@ -6499,7 +6554,7 @@
 	        /**
 	         * 没有足够的优先级，跳过这个update,如果这个是第一个跳过的更新，那么
 	         * 为了保证打乱更新顺序后，状态更新的正确性
-	         * 会从第一个跳过的update开始把他们全部接在baseQueue上
+	         * 会从第一个跳过的update开始把他们全部接在baseQueue上 
 	         * 比如以下例子，在pendingQueue中有三个更新，且假设此时的state为0
 	         * {                  {                                {
 	         *   lane: 16, ---->      lane: 1,               ---->    lane: 16,
@@ -6557,13 +6612,14 @@
 	          };
 	          newBaseQueueLast.next = _clone;
 	          newBaseQueueLast = _clone;
-	        }
+	        } // 获取更新的action对象 {type:'ADD'}
+
 
 	        var action = update.action;
 	        newState = reducer(newState, action);
 	      }
 
-	      update = update.next;
+	      update = update.next; // 当首尾相当就终于循环
 	    } while (update !== null && update !== first);
 
 	    if (newBaseQueueLast === null) {
@@ -6579,11 +6635,13 @@
 	       * 清除，最终到commit阶段如果发现没有副作用，就什么都不用干
 	       */
 	      markWorkInProgressReceivedUpdate();
-	    }
+	    } // 赋值新属性
+
 
 	    hook.memoizedState = newState;
 	    hook.baseState = newBaseState;
-	    hook.baseQueue = newBaseQueueLast;
+	    hook.baseQueue = newBaseQueueLast; // 保存上一个状态
+
 	    queue.lastRenderedState = newState;
 	  }
 
@@ -6595,24 +6653,28 @@
 
 	  var dispatch = queue.dispatch;
 	  return [hook.memoizedState, dispatch];
-	};
+	}; // setState其实是useReducer实现的
+
 
 	var updateState = function updateState(initialState) {
 	  return updateReducer(basicStateReducer);
 	};
 
 	var renderWithHooks = function renderWithHooks(current, workInProgress, Component, props, secondArg, nextRenderLanes) {
-	  renderLanes = nextRenderLanes;
+	  renderLanes = nextRenderLanes; // currentlyRenderingFiber为最新的workInProgress
+
 	  currentlyRenderingFiber = workInProgress; //Function组件每次update是都会将新的effect挂载在上面，如果
 	  //不清除那么老的effect会一直存在并被调用
 
 	  workInProgress.updateQueue = null;
 	  workInProgress.memoizedState = null;
-	  workInProgress.lanes = NoLanes;
+	  workInProgress.lanes = NoLanes; // 用来保存当前的dispatch，这里用来区分是挂载还是更新
+
 	  ReactCurrentDispatcher$1.current = current === null || current.memoizedState === null ? HooksDispatcherOnMount : HooksDispatcherOnUpdate; //调用函数组件，获取JSX对象
 
 	  var children = Component(props, secondArg);
-	  renderLanes = NoLanes;
+	  renderLanes = NoLanes; // 执行完函数currentlyRenderingFiber清空
+
 	  currentlyRenderingFiber = null;
 	  /**
 	   * 完成该Function组建后将currentHook,workInProgressHook置为null,否则会导致下次更新
@@ -6829,7 +6891,7 @@
 	var didReceiveUpdate = false;
 
 	var updateFunctionComponent = function updateFunctionComponent(current, workInProgress, Component, nextProps, renderLanes) {
-	  var nextChildren = renderWithHooks(current, workInProgress, Component, nextProps, null, renderLanes);
+	  var nextChildren = renderWithHooks(current, workInProgress, Component, nextProps, null, renderLanes); // 根据didReceiveUpdate可以跳过更新，因为两次状态一样
 
 	  if (current !== null && !didReceiveUpdate) {
 	    bailoutHooks(current, workInProgress, renderLanes);
@@ -6879,7 +6941,8 @@
 	  var prevChildren = prevState !== null ? prevState.element : null; //HostRoot的pendingProps为null
 
 	  var nextProps = workInProgress.pendingProps;
-	  processUpdateQueue(workInProgress, nextProps, null);
+	  processUpdateQueue(workInProgress, nextProps, null); // 获取虚拟dom也就是jsx
+
 	  var nextState = workInProgress.memoizedState;
 	  var nextChildren = nextState.element;
 
@@ -6890,17 +6953,18 @@
 
 	  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
 	  return workInProgress.child;
-	};
+	}; // 将ReactElement转换成jsx，但是并未挂载
+
 
 	var reconcileChildren = function reconcileChildren(current, workInProgress, nextChildren, renderLanes) {
 	  if (current === null) {
 	    // 初次渲染，不需要比较
 	    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren, renderLanes);
 	  } else {
-	    // 进行新老内容比较，得到差异进行更新
+	    // 进行新老内容比较，得到差异进行更新，针对不同的类型的节点，进行不同类型的操作
 	    workInProgress.child = reconcileChildFibers(workInProgress, // 新的fiber
 	    current.child, // 老fiber的第一个子节点
-	    nextChildren, // 新的虚拟dom
+	    nextChildren, // 虚拟dom也就是jsx
 	    renderLanes);
 	  }
 	};
@@ -6921,7 +6985,8 @@
 	  var props = workInProgress.pendingProps; //value为该Function Component返回的JSX对象
 
 	  var value = renderWithHooks(current, workInProgress, Component, props, null, renderLanes);
-	  workInProgress.tag = FunctionComponent;
+	  workInProgress.tag = FunctionComponent; // 处理子节点，根据老Fiber和新的虚拟Dom进行比较，创建新的Fiber树，关联与父节点的return关系之类的
+
 	  reconcileChildren(null, workInProgress, value, renderLanes);
 	  return workInProgress.child;
 	};
@@ -7082,6 +7147,7 @@
 	var beginWork = function beginWork(current, workInProgress, renderLanes) {
 	  var updateLanes = workInProgress.lanes; //当页面第一次渲染时current fiber树除了HostRoot(也就是FiberRoot.current)节点其他都还未创建,
 	  //workInPgress树中的HostRoot(FiberRoot.current.alternate)也在prepareFreshStack函数中被创建
+	  // current其实就是alternate
 
 	  if (current !== null) {
 	    var oldProps = current.memoizedProps;
@@ -8035,7 +8101,8 @@
 
 	var commitMutationEffects_complete = function commitMutationEffects_complete(root) {
 	  while (nextEffect !== null) {
-	    var fiber = nextEffect;
+	    var fiber = nextEffect; // 根据flags进行节点处理，删除移动之类的
+
 	    commitMutationEffectsOnFiber(fiber);
 	    var sibling = fiber.sibling;
 
@@ -8824,7 +8891,9 @@
 	  var completedWork = unitOfWork;
 
 	  do {
-	    var current = completedWork.alternate;
+	    // 拿到fiber的替身，也就是老fiber
+	    var current = completedWork.alternate; // 拿到父fiber
+
 	    var returnFiber = completedWork["return"];
 	    var next = completeWork(current, completedWork); // if (next !== null) {
 	    //   //// Something suspended. Re-render with the fallback children.
@@ -8857,11 +8926,14 @@
 	  //为对应的fiber节点打上相应的标记比如Update,Placement,ChildDeletion等
 	  //然后将第一个子节点返回也就是unitOfWork.child
 	  //因为同级节点直接使用sibling链接所以只用返回第一个就行
+	  // 开始构建当前fiber的子fiber链表，他会返回下一个fiber，一般都是大儿子
 
-	  next = beginWork(current, unitOfWork, subtreeRenderLanes);
+	  next = beginWork(current, unitOfWork, subtreeRenderLanes); // beginWork后，需要把新属性同步到老属性上面
+
 	  unitOfWork.memoizedProps = unitOfWork.pendingProps; //进行的是深度优先遍历，next为null说明该节点没有子节点了，对其进行归过程
 
 	  if (next === null) {
+	    // 完成一个fiber节点
 	    completeUnitOfWork(unitOfWork);
 	  } else {
 	    //将workInProgress赋值为unitOfWork的第一个子节点
@@ -8923,8 +8995,10 @@
 	  executionContext |= RenderContext;
 
 	  if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
+	    // 这是给workInProgress赋值，并且给Fiber增加alternate属性，添加替身
 	    prepareFreshStack(root, lanes);
-	  }
+	  } // 执行工作单元，每个fiber都是一个执行单元，执行单个工作单元
+
 
 	  while (workInProgress !== null) {
 	    performUnitOfWork(workInProgress);
@@ -8990,6 +9064,7 @@
 	  if (rootHasEffect || subtreeHasEffects) {
 	    //BeforeMutation阶段，Class组件会在其中执行getSnapshotBeforeUpdate
 	    //我们只实现了Function Commponent,以我们的实现无关,可以忽略
+	    console.log(root);
 	    commitBeforeMutationEffects(root, finishedWork); //Mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作
 
 	    commitMutationEffects(root, finishedWork); //此时的workInProgress树被赋值为current Fiber树
@@ -9033,10 +9108,12 @@
 
 	var performSyncWorkOnRoot = function performSyncWorkOnRoot(root) {
 	  var lanes = getNextLanes(root, NoLanes);
-	  if (!includesSomeLane(lanes, SyncLane)) return null;
+	  if (!includesSomeLane(lanes, SyncLane)) return null; // 根据老的Fiber树创建新的fiber树，然后根据新的Fiber树更新真实dom
+
 	  var exitStatus = renderRootSync(root, lanes);
 	  var finishedWork = root.current.alternate;
-	  root.finishedWork = finishedWork;
+	  root.finishedWork = finishedWork; // 提交，根据flags副作用标识进行节点操作
+
 	  commitRoot(root);
 	  return null;
 	};
@@ -9205,7 +9282,6 @@
 	  //和Sync模式的区别就是，是否加了shouldYield，能在一定
 	  //时机暂停render过程
 	  while (workInProgress !== null && !shouldYield()) {
-	    debugger;
 	    performUnitOfWork(workInProgress);
 	  }
 	};
@@ -9444,7 +9520,7 @@
 
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2022-09-23 18:08:06
+	 * @LastEditTime: 2023-01-03 18:49:01
 	 */
 	/**
 	 *
@@ -9463,13 +9539,16 @@
 	 */
 
 	var updateContainer = function updateContainer(element, container) {
+	  // 获取hostRootFiber fiber根的根节点
+	  // 正常来说一个fiber节点会对应一个真实dom节点，hostRootFiber对应的Dom节点就是container也就是root真实dom节点
 	  var current = container.current;
 	  var eventTime = requestEventTime(); //获得该次更新的优先级如果不处于ConcurrentMode下的话优先级永远都为Sync
 
 	  var lane = requestUpdateLane(current); //创建一个更新，由于我们只实现了Function类型的组件
 	  //这种类型的update就只有HostRoot用到了
 
-	  var update = createUpdate();
+	  var update = createUpdate(); // 需要渲染的元素
+
 	  update.payload = {
 	    element: element
 	  };
@@ -9585,7 +9664,7 @@
 
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2022-09-23 18:08:36
+	 * @LastEditTime: 2023-01-04 23:02:45
 	 */
 
 	var legacyCreateRootFromDOMContainer = function legacyCreateRootFromDOMContainer(container) {
@@ -9596,7 +9675,6 @@
 	  var _fiberRoot$current$ch3;
 
 	  var root = container._reactRootContainer;
-	  debugger;
 	  var fiberRoot;
 
 	  if (!root) {
@@ -9611,7 +9689,6 @@
 	    throw new Error('Not Implement');
 	  }
 
-	  console.log('fiberRoot', fiberRoot);
 	  return (_fiberRoot$current$ch3 = fiberRoot.current.child) === null || _fiberRoot$current$ch3 === void 0 ? void 0 : _fiberRoot$current$ch3.stateNode;
 	};
 
@@ -9621,20 +9698,11 @@
 
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2022-09-23 17:28:53
+	 * @LastEditTime: 2023-01-04 22:57:10
 	 */
-	render( /*#__PURE__*/React.createElement("div", {
-	  id: "title",
-	  key: "title"
-	}, "\u5185\u5BB9"), document.querySelector("#app")); // createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
-	// createRoot(document.querySelector('#app')!).render(<PriorityScheduling />)
-	// createRoot(document.querySelector('#app')!).render(<ChildrenReconcilerDemo />)
-	// createRoot(document.querySelector('#app')!).render(<LayoutEffectDemo />)
-	// createRoot(document.querySelector('#app')!).render(<StateEffectDemo />)
-	// createRoot(document.querySelector('#app')!).render(<TimeSlicingDemo />)
-	// render(<PriorityScheduling />, document.querySelector('#app')!)
-	// render(<StateEffectDemo />, document.querySelector('#app')!)
-	// render(<TimeSlicingDemo />, document.querySelector("#app")!);
+	// createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
+	var singleDom = /*#__PURE__*/React.createElement("div", null, "\u6E32\u67D3\u5185\u5BB9");
+	render(singleDom, document.querySelector("#app"));
 
 }());
 //# sourceMappingURL=index.js.map

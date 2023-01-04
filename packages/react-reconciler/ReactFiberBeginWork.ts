@@ -42,7 +42,7 @@ const updateFunctionComponent = (
     null,
     renderLanes
   )
-
+  // 根据didReceiveUpdate可以跳过更新，因为两次状态一样
   if (current !== null && !didReceiveUpdate) {
     bailoutHooks(current, workInProgress, renderLanes)
     return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes)
@@ -98,6 +98,7 @@ const updateHostRoot = (
   //HostRoot的pendingProps为null
   const nextProps = workInProgress.pendingProps
   processUpdateQueue(workInProgress, nextProps, null)
+    // 获取虚拟dom也就是jsx
   const nextState = workInProgress.memoizedState
 
   const nextChildren = nextState.element
@@ -111,7 +112,7 @@ const updateHostRoot = (
 
   return workInProgress.child
 }
-
+// 将ReactElement转换成jsx，但是并未挂载
 const reconcileChildren = (
   current: Fiber | null,
   workInProgress: Fiber,
@@ -127,11 +128,11 @@ const reconcileChildren = (
       renderLanes
     )
   } else {
-    // 进行新老内容比较，得到差异进行更新
+    // 进行新老内容比较，得到差异进行更新，针对不同的类型的节点，进行不同类型的操作
     workInProgress.child = reconcileChildFibers(
       workInProgress, // 新的fiber
       current.child, // 老fiber的第一个子节点
-      nextChildren, // 新的虚拟dom
+      nextChildren, // 虚拟dom也就是jsx
       renderLanes
     )
   }
@@ -379,6 +380,7 @@ export const beginWork = (
 
   //当页面第一次渲染时current fiber树除了HostRoot(也就是FiberRoot.current)节点其他都还未创建,
   //workInPgress树中的HostRoot(FiberRoot.current.alternate)也在prepareFreshStack函数中被创建
+  // current其实就是alternate
   if (current !== null) {
     const oldProps = current.memoizedProps
     const newProps = workInProgress.pendingProps
@@ -417,7 +419,6 @@ export const beginWork = (
   //导致后续的更新不会触发，还会导致root上的pendingLanes一直不为空
   //会让performConcurrentWorkOnRoot一直被schedule下去
   workInProgress.lanes = NoLanes
-
   switch (workInProgress.tag) {
     case IndeterminateComponent: {
       //在mount时FunctionComponent是按indeterminate处理的

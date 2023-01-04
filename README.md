@@ -1,92 +1,177 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2022-11-15 10:54:14
+ * @LastEditTime: 2023-01-04 23:17:28
 -->
+### React架构
 
-## React 工作循环
+1.**Scheduler**（调度器）—— 调度任务的优先级，高优任务优先进入Reconciler
+
+2.**Reconciler**（协调器）—— 负责找出变化的组件
+
+3.**Renderer（渲染器）**—— 负责将变化的组件渲染到页面上
+
+<br/>
+
+React是用**javaScript**构建快速响应的大型web应用的首选方式，何为快速响应？
+
+当遇到大量操作计算或者设备性能产生的页面掉帧导致卡顿，发发送网络请求后，由于需要等待数据返回才能进一步操作导致不能快速响应，这两类场景可以概括为**CPU**的瓶颈和**IO**的瓶颈，react如何解决？
+
+在浏览器每一帧的时间中，预留一些时间给JS线程，React利用这部分时间更新组件（可以看到，在源码 (opens new window)中，预留的初始时间是5ms）
+ƒ
+这种将长任务分拆到每一帧中，像蚂蚁搬家一样一次执行一小段任务的操作，被称为时间切片（time slice）
+
+IO的瓶颈如何解决
+
+为此，React实现了**Suspense**功能及配套的hook——useDeferredValue
+
+而在源码内部，为了支持这些特性，同样需要将**同步的更新**变为**可中断的异步更新**
+
+<br/>
+
+### React 工作循环
 
 ![avatar](./img/react.png)
 
----
 
-## 初始流程
+### beginWork
 
 ![avatar](./img/beginWork.png)
 
+
+
+### completeWork
+
+![avatar](./img/completeWork.png)
+
+
+
+### React切片
+
 React分为两种模式,render和createRoot两种入口,分为**legacy**和**concurrent**两种
 
-+ legacy模式(同步)
+**legacy模式**(同步)
 
 render调用legacyRenderSubtreeIntoContainer，最后createRootImpl会调用到createFiberRoot创建fiberRootNode,然后调用createHostRootFiber创建rootFiber，其中fiberRootNode是整个项目的的根节点，rootFiber是当前应用挂在的节点，也就是ReactDOM.render调用后的根节点
 
 
-+ concurrent模式(异步)
+**concurrent**模式(异步)
 
 createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl中调用listenToAllSupportedEvents初始化事件注册
 
 创建完Fiber节点后，调用ReactDOMRoot.prototype.render执行updateContainer，然后scheduleUpdateOnFiber异步调度performConcurrentWorkOnRoot进入render阶段和commit阶段
 
-+ 不同点
+不同点
 
 在函数scheduleUpdateOnFiber中根据不同优先级进入不同分支，legacy模式进入performSyncWorkOnRoot，concurrent模式会异步调度performConcurrentWorkOnRoot
 
----
+<br/>
 
-## Fiber双缓存树
+### Fiber双缓存树
 
-- current Fiber 树当渲染完毕后会生成一个 current Fiber 树
+current Fiber 树当渲染完毕后会生成一个 current Fiber 树
 
-- workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
 
-- workInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
+orkInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
 
-- 构建完成后为finishedWork，完成的工作
+构建完成后为finishedWork，完成的工作
 
 
 ## ![avatar](./img/renderRootFiber.jpg)
----
 
-fiber更新逻辑
+<br/>
 
-## ![avatar](./img/fiberUpdate.jpg)
+### Fiber数据结构
 
+**BaseFiberRootProperties**定义了fiberRoot大部分属性
 
----
-
-
-## 函数渲染流程
-
-+ 函数组件首次挂载，在renderWithHook中useState初始化，调用useStateOnMout,其他hook同理，声明currentlyRenderingFiber为workInProgress，同时调用mountWorkInProgressHook构建单向链表，判断是创建新的对应hook还是进行单向连接，返回workInProgressHook，声明queue队列，调用dispatchAction，将update加入queue队列，同时判断state值，判断是否跳过后续的scheduleUpdateOnFiber逻辑
-
-## ![avatar](./img/renderWithHook.jpg)
-
----
-
-Fiber结构在函数中使用useState首次挂载
-
-Function Component自己是没有状态的，它的状态来源于每次执行函数时，useState返回的内容
-
-每个useState对应一个hook对象，当Funtion Component首次渲染时，会把所有的调用到的useState对应的hook对象，以链表的形式挂载到Fiber对应的memoizedState中,hook通过执行之后返回值得到状态和更改状态的方法
-
-## ![avatar](./img/useStateMount.png)
-
----
-
-多次通过useState调用更新
-
-函数组件多次通过useState调用更新，通过Fiber的memoizedState的queue，构建多次调用更新的链表
-
-## ![avatar](./img/memoizedStateQueue.png)
-
----
-
- 函数组件的更新
-
-## ![avatar](./img/hookUpdate.jpg)
-
----
-
- dispatchAction如何执行？
+```javaScript
+type BaseFiberRootProperties = {
+    /**类型**/
+    tag: RootTag,
+     /**root节点，也就是ReactDOM.render(<App />, document.getElementById('root'))的第二个参数**/
+    containerInfo: any,
+    current: {
+        alternate:FiberNode,
+        child:{
+        alternate:null
+        child:null
+        childLanes:0
+        deletions: null
+        elementType:"div"
+        flags:0
+        index:0
+        key:null
+        lanes:0
+        memoizedProps:
+        { children: '渲染内容' }
+        memoizedState:null
+        mode:0
+        pendingProps:{ children: '渲染内容' }
+        return: FiberNode { tag: 3, pendingProps: null, key: null, mode: 0, stateNode: FiberRootNode, … }
+        sibling:null
+        stateNode:div
+        subtreeFlags:0
+        tag:5
+        type:"div"
+        updateQueue:null
+      }
+    },
+    //任务有三种，优先级有高低：
+    //（1）没有提交的任务
+    //（2）没有提交的被挂起的任务
+    //（3）没有提交的可能被挂起的任务
+    //当前更新对应的过期时间
+    finishedExpirationTime: ExpirationTime,
+    //已经完成任务的FiberRoot对象，如果你只有一个Root，那么该对象就是这个Root对应的Fiber或null
+    //在commit(提交)阶段只会处理该值对应的任务
+    finishedWork: Fiber | null,
+    // 在任务被挂起的时候，通过setTimeout设置的响应内容，
+    // 并且清理之前挂起的任务 还没触发的timeout
+    timeoutHandle: TimeoutHandle | NoTimeout,
+    //顶层context对象，只有主动调用renderSubtreeIntoContainer才会生效
+    context: Object | null,
+    pendingContext: Object | null,
+    //用来判断 第一次渲染 是否需要融合
+    hydrate: boolean,
+    firstBatch: Batch | null,
+    callbackNode: *,
+    //跟root有关联的回调函数的时间
+    callbackExpirationTime: ExpirationTime,
+    //存在root中，最旧的挂起时间
+    //不确定是否挂起的状态（所有任务一开始均是该状态）
+    firstPendingTime: ExpirationTime,
+    //存在root中，最新的挂起时间
+    //不确定是否挂起的状态（所有任务一开始均是该状态）
+    lastPendingTime: ExpirationTime,
+    //挂起的组件通知root再次渲染的时间
+    //通过一个promise被reslove并且可以重新尝试的优先级
+    pingTime: ExpirationTime,
+    //更新队列
+    UpdateQueue:{
+      /**
+       * 前一次更新计算得出的状态，它是第一个被跳过的update之前的那些update计算得出的state。会以它为基础计算本次的state
+       */
+      baseState: State
+      /**
+        * 存储着本次更新的update队列，是实际的updateQueue。
+        * shared的意思是current节点与workInProgress节点共享一条更新队列。
+      */
+      shared: {
+        pending: Update | null
+      }
+      /**
+       * 前一次更新时updateQueue中第一个被跳过的update对象
+       */
+      firstBaseUpdate: Update | null
+      /**
+       *lastBaseUpdate相当于，前一次更新中，updateQueue中以第一个被跳过的update为起点一直到的最后一个update的形成的链表，截取最后一个而获得的update
+      */
+      lastBaseUpdate: Update | null
+    }
+  };
+```
+## dispatchAction如何执行？
 
 ![avatar](./img/createUpdateQueue.png)
 
@@ -125,7 +210,8 @@ Function Component自己是没有状态的，它的状态来源于每次执行�
     }while(update !== first){}
   }
 ```
----
+<br/>
+
 ## setState 是同步还是异步？
 
 - 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
@@ -158,11 +244,10 @@ Function Component自己是没有状态的，它的状态来源于每次执行�
         console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
      });
 ```
----
+<br/>
 
-## DomDiff
 
-DomDiff的三个原则
+### DomDiff的三个原则
 
 1.只对同级元素进行比较
 
@@ -216,7 +301,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ![avatar](./img/moreDomDiff.png)
 
----
+<br/>
 
 ## 事件代理
 
@@ -259,8 +344,6 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
     <button onClick={this.handleClick}></button>
     {this.state.show && <a>显示</a>}
 ```
+<br/>
 
----
 
-
-参考链接 [React 技术解密](https://react.iamkasong.com/) https://react.iamkasong.com/

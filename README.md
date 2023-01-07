@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-07 14:49:48
+ * @LastEditTime: 2023-01-07 15:05:07
 -->
 ### React架构
 
@@ -35,7 +35,7 @@ IO的瓶颈如何解决
 
 ### beginWork
 
-<img src="./img/beginWork1.png" style="width:1000px">
+![avatar](./img/beginWork1.png)
 
 
 

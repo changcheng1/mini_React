@@ -65,15 +65,6 @@ const addTrappedEventListener = (
   )
 
   let isPassiveListener: undefined | boolean = undefined
-
-  if (
-    domEventName === 'wheel' ||
-    domEventName === 'touchmove' ||
-    domEventName === 'touchstart'
-  ) {
-    isPassiveListener = true
-  }
-
   let unsubscribeListener
 
   if (isCapturePhaseListener) {
@@ -143,16 +134,11 @@ export const listenToAllSupportedEvents = (
 ) => {
   if (!(rootContainerElement as any)[listeningMarker]) {
     allNativeEvents.forEach((domEventName) => {
-      /**
-       * 单独处理selectionchange因为他不会冒泡，而且需要设置在document上
-       */
-      if (domEventName !== 'selectionchange') {
         if (!nonDelegatedEvents.has(domEventName)) {
           listenToNativeEvent(domEventName, false, rootContainerElement)
         }
 
         listenToNativeEvent(domEventName, true, rootContainerElement)
-      }
     })
   }
 }

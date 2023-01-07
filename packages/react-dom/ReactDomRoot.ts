@@ -58,7 +58,7 @@ ReactDomRoot.prototype.render = ReactDOMLegacyRoot.prototype.render = function (
   children: ReactNodeList
 ) {
   const root = this._internalRoot;
-
+  
   updateContainer(children, root);
 };
 

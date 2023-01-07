@@ -1,8 +1,11 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-09-25 19:46:21
+ * @LastEditTime: 2023-01-04 22:57:10
  */
 import React from "../packages/react";
-import { createRoot } from "../packages/react-dom";
+import { createRoot,render } from "../packages/react-dom";
 import { MemorizedComponentDemo } from "./MemorizedComponent";
- createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
+// createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
+const singleDom = <div>渲染内容</div>
+render(singleDom, document.querySelector("#app")!);
+

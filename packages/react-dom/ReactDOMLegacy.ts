@@ -1,7 +1,8 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-09-23 18:08:36
+ * @LastEditTime: 2023-01-04 23:02:45
  */
+import { debug, log } from 'console'
 import { updateContainer } from '../react-reconciler/ReactFiberReconciler'
 import { unbatchedUpdates } from '../react-reconciler/ReactFiberWorkLoop'
 import { FiberRoot } from '../react-reconciler/ReactInternalTypes'
@@ -21,7 +22,6 @@ const legacyRenderSubtreeIntoContainer = (
   callback?: Function
 ) => {
   let root: RootType | undefined = container._reactRootContainer
-  debugger
   let fiberRoot: FiberRoot
   if (!root) {
     //首次挂载
@@ -43,8 +43,6 @@ const legacyRenderSubtreeIntoContainer = (
   } else {
     throw new Error('Not Implement')
   }
-  console.log('fiberRoot',fiberRoot);
-  
   return fiberRoot.current.child?.stateNode
 }
 
@@ -53,5 +51,6 @@ export const render = (
   container: Container,
   callback?: Function
 ) => {
-  return legacyRenderSubtreeIntoContainer(null, element, container, callback)
+  
+  return legacyRenderSubtreeIntoContainer(null, element, container, callback) 
 }

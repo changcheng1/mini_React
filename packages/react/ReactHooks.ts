@@ -1,3 +1,7 @@
+/*
+ * @Author: changcheng
+ * @LastEditTime: 2022-10-17 14:16:29
+ */
 import { Dispatcher } from '../react-reconciler/ReactInternalTypes'
 import { ReactCurrentDispatcher } from './ReactCurrentDispatcher'
 
@@ -13,7 +17,6 @@ type Dispatch<A> = (a: A) => void
  */
 const resolveDispatcher = (): Dispatcher => {
   const dispatcher = ReactCurrentDispatcher.current
-
   return dispatcher!
 }
 

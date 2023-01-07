@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-04 23:17:28
+ * @LastEditTime: 2023-01-07 14:49:48
 -->
 ### React架构
 
@@ -8,7 +8,7 @@
 
 2.**Reconciler**（协调器）—— 负责找出变化的组件
 
-3.**Renderer（渲染器）**—— 负责将变化的组件渲染到页面上
+3.**Renderer**（渲染器）—— 负责将变化的组件渲染到页面上
 
 <br/>
 
@@ -35,7 +35,7 @@ IO的瓶颈如何解决
 
 ### beginWork
 
-![avatar](./img/beginWork.png)
+<img src="./img/beginWork1.png" style="width:1000px">
 
 
 
@@ -68,14 +68,23 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 
 ### Fiber双缓存树
 
-current Fiber 树当渲染完毕后会生成一个 current Fiber 树
+1.react根据双缓冲机制维护了两个fiber树
 
-workInProgress fiber 树在 render 阶段，会基于 current 树创建新的 workInProgress fiber 树赋值给 current Fiber 树
+current Fiber树：用于渲染页面
 
-orkInProgress fiber 树的每个节点会有一个 alternate 指针指向 current 树赋给 current Fiber 树
+workinProgress Fiber树：用于在内存构建中，方便在构建完成后直接替换current Fiber树
 
-构建完成后为finishedWork，完成的工作
+2.Fiber双缓存
 
+首次渲染时：
+render阶段会根据jsx对象生成新的Fiber节点，然后这些Fiber节点会被标记成带有‘Placement’的副作用，说明他们是新增节点，需要被插入到真实节点中，在commitWork阶段就会操作成真实节点，将它们插入到dom树中。
+
+页面触发更新时
+render阶段会根据最新的jsx生成的虚拟dom和current Fiber树进行对比，比较之后生成workinProgress Fiber(workinProgress Fiber树的alternate指向Current Fiber树的对应节点，这些Fiber会带有各种副作用，比如‘Deletion’、‘Update’、'Placement’等)这一对比过程就是diff算法
+
+当workinProgress Fiber树构建完成，workInprogress 则成为了curent Fiber渲染到页面上
+
+diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣成 workInprogress Fiber
 
 ## ![avatar](./img/renderRootFiber.jpg)
 
@@ -87,34 +96,43 @@ orkInProgress fiber 树的每个节点会有一个 alternate 指针指向 curren
 
 ```javaScript
 type BaseFiberRootProperties = {
-    /**类型**/
+    // 类型
     tag: RootTag,
-     /**root节点，也就是ReactDOM.render(<App />, document.getElementById('root'))的第二个参数**/
+    // root节点，也就是ReactDOM.render(<App />, document.getElementById('root'))的第二个参数
     containerInfo: any,
+    // 老的Fiber节点，用来复用
     current: {
         alternate:FiberNode,
         child:{
-        alternate:null
-        child:null
-        childLanes:0
-        deletions: null
-        elementType:"div"
-        flags:0
-        index:0
-        key:null
-        lanes:0
-        memoizedProps:
-        { children: '渲染内容' }
-        memoizedState:null
-        mode:0
-        pendingProps:{ children: '渲染内容' }
-        return: FiberNode { tag: 3, pendingProps: null, key: null, mode: 0, stateNode: FiberRootNode, … }
-        sibling:null
-        stateNode:div
-        subtreeFlags:0
-        tag:5
-        type:"div"
-        updateQueue:null
+          //当前Fiber的替身
+          alternate:null
+          child:null
+          childLanes:0
+          deletions: null
+          elementType:"div"
+          flags:0
+          index:0
+          // key用于标记元素是否可复用
+          key:null
+          lanes:0
+          // 记录上一次的更新状态
+          memoizedProps:{ children: '渲染内容' }
+          memoizedState:null
+          mode:0
+          // 最新的状态，update依赖于memoizedProps
+          pendingProps:{ children: '渲染内容' }
+          // 父级Fiber节点
+          return: FiberNode { tag: 3, pendingProps: null, key: null, mode: 0, 
+          // 兄弟节点
+          sibling:null
+          // 真实的DOM节点
+          stateNode:div
+          subtreeFlags:0
+          // 当前的Fiber类型
+          tag:5
+          // 真实Dom的节点类型
+          type:"div"
+          updateQueue:null
       }
     },
     //任务有三种，优先级有高低：
@@ -123,55 +141,46 @@ type BaseFiberRootProperties = {
     //（3）没有提交的可能被挂起的任务
     //当前更新对应的过期时间
     finishedExpirationTime: ExpirationTime,
-    //已经完成任务的FiberRoot对象，如果你只有一个Root，那么该对象就是这个Root对应的Fiber或null
-    //在commit(提交)阶段只会处理该值对应的任务
+    // 已经完成任务的FiberRoot对象，如果你只有一个Root，那么该对象就是这个Root对应的Fiber或null
+    // 在commit(提交)阶段只会处理该值对应的任务
     finishedWork: Fiber | null,
     // 在任务被挂起的时候，通过setTimeout设置的响应内容，
     // 并且清理之前挂起的任务 还没触发的timeout
     timeoutHandle: TimeoutHandle | NoTimeout,
-    //顶层context对象，只有主动调用renderSubtreeIntoContainer才会生效
+    // 顶层context对象，只有主动调用renderSubtreeIntoContainer才会生效
     context: Object | null,
     pendingContext: Object | null,
-    //用来判断 第一次渲染 是否需要融合
+    // 用来判断 第一次渲染 是否需要融合
     hydrate: boolean,
     firstBatch: Batch | null,
     callbackNode: *,
-    //跟root有关联的回调函数的时间
+    // 跟root有关联的回调函数的时间
     callbackExpirationTime: ExpirationTime,
-    //存在root中，最旧的挂起时间
-    //不确定是否挂起的状态（所有任务一开始均是该状态）
+    // 存在root中，最旧的挂起时间
+    // 不确定是否挂起的状态（所有任务一开始均是该状态）
     firstPendingTime: ExpirationTime,
-    //存在root中，最新的挂起时间
-    //不确定是否挂起的状态（所有任务一开始均是该状态）
+    // 存在root中，最新的挂起时间
+    // 不确定是否挂起的状态（所有任务一开始均是该状态）
     lastPendingTime: ExpirationTime,
-    //挂起的组件通知root再次渲染的时间
-    //通过一个promise被reslove并且可以重新尝试的优先级
+    // 挂起的组件通知root再次渲染的时间
+    // 通过一个promise被reslove并且可以重新尝试的优先级
     pingTime: ExpirationTime,
-    //更新队列
+    // 更新队列
     UpdateQueue:{
-      /**
-       * 前一次更新计算得出的状态，它是第一个被跳过的update之前的那些update计算得出的state。会以它为基础计算本次的state
-       */
+      // 前一次更新计算得出的状态，它是第一个被跳过的update之前的那些update计算得出的state。会以它为基础计算本次的state
       baseState: State
-      /**
-        * 存储着本次更新的update队列，是实际的updateQueue。
-        * shared的意思是current节点与workInProgress节点共享一条更新队列。
-      */
+      // 存储着本次更新的update队列，是实际的updateQueue。shared的意思是current节点与workInProgress节点共享一条更新队列。
       shared: {
         pending: Update | null
       }
-      /**
-       * 前一次更新时updateQueue中第一个被跳过的update对象
-       */
+      // 前一次更新时updateQueue中第一个被跳过的update对象
       firstBaseUpdate: Update | null
-      /**
-       *lastBaseUpdate相当于，前一次更新中，updateQueue中以第一个被跳过的update为起点一直到的最后一个update的形成的链表，截取最后一个而获得的update
-      */
+      // lastBaseUpdate相当于，前一次更新中，updateQueue中以第一个被跳过的update为起点一直到的最后一个update的形成的链表，截取最后一个而获得的update
       lastBaseUpdate: Update | null
     }
   };
 ```
-## dispatchAction如何执行？
+### useState源码中dispatchAction如何执行？
 
 ![avatar](./img/createUpdateQueue.png)
 

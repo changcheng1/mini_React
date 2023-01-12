@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-12 22:01:34
+ * @LastEditTime: 2023-01-12 22:06:52
 -->
 ### React架构
 
@@ -251,7 +251,7 @@ type BaseFiberRootProperties = {
     }
   };
 ```
-### useState源码中dispatchAction如何执行？
+### useState源码中dispatchAction如何执行
 
 ![avatar](./img/createUpdateQueue.png)
 
@@ -292,7 +292,7 @@ type BaseFiberRootProperties = {
 ```
 <br/>
 
-## setState 是同步还是异步？
+### setState 是同步还是异步？
 
 - 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
 
@@ -385,24 +385,6 @@ newChildren与oldFiber都没遍历完
 由于有节点改变了位置，所以不能再用位置索引i对比前后的节点，我们使用key，核心逻辑在于mapRemainingChildren
 
 ```javaScript
-   更新前: [<div key="1">1<div>, <div key="2">2</div>, <div key="3">3</div>]
-   更新后: [<div key="3">3</div>, <div key="1">1<div>]
-   在这次更新中子元素的位置发生了变化，而且2还被删除了
-   由于第一个newChild进行工作时就会发现，同一位置前后元素
-   一个key是1一个是3，所以并没有成功复用节点就会直接break进入这里的updateFromMap逻辑
-   所以会更具current fiber节点构建出以下map
-   {
-      *   1 -> <div key="1">1</div>,
-      *   2 -> <div key="2">2</div>,
-      *   3 -> <div key="3">3</div>,
-   }
-   由于3节点和1节点都成功被复用,所以都会被从map中删除
-   所以此时map中还剩下一个2节点，此时就能知道这个2节点
-   就是没有被复用的废弃节点待会需要将这些废弃节点标记删除
-   这里也就是将2节点标记删除
-```
-
-```javaScript
   <ul>
     <li key="A">A</li>
     <li key="B">B</li>
@@ -421,8 +403,10 @@ newChildren与oldFiber都没遍历完
   </ul>
   // 如果第一轮遍历的时候，发现key不一样，则立刻跳出第一轮循环
   // key不一样，说明可能有位置变化，更新A
-
-  //第二轮循环，新建map={"B":"B","C":"C","D":"D","E":"E","F":"F"}，可以复用的节点标记为更新，从map中删除，然后map={"D":"D","F":"F"}，还没有被复用的fiber节点，等新的jsx数组遍历完之后，把map中的所有节点标记为删除，再更新，然后移动，记录第一轮的lastPlaceIndex，最小的oldIndex移动，最后插入新元素。
+  // 第二轮循环，新建map={"B":"B","C":"C","D":"D","E":"E","F":"F"}，可以复用的节点标记为更新
+  // 从map中删除，然后map={"D":"D","F":"F"}，还没有被复用的fiber节点，等新的jsx数组遍历完之后，
+  // 把map中的所有节点标记为删除，再更新，然后移动，记录第一轮的lastPlaceIndex，
+  // 最小的oldIndex移动，最后插入新元素。
 ```
 
 ![avatar](./img/moreDomDiff.png)

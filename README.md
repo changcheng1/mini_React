@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-08 17:33:48
+ * @LastEditTime: 2023-01-12 22:01:34
 -->
 ### React架构
 
@@ -37,7 +37,7 @@ IO的瓶颈如何解决
 ### beginWork
 
 
-当首屏渲染时，通过prepareFreshStack，初始化FiberRoot的finishedWork属性，同时通过root.current创建新的workInProgress，然后判断workInProgress !== null，while循环调用performUnitOfWork，performUnitOfWork当中开始进行beginWork，beginWork执行完毕，将新属性同步到老属性上面，nitOfWork.memoizedProps = unitOfWork.pendingProps，beginWork的作用就是通过当前的Fiber创建子fiber，建立fiber链，根节点调用updateHostRoot，此时current和workInProgress一定会同时存在，调用reconcileChildren函数，传入current和workInProgess，，此时current !== null,直接走更新逻辑，通过reconcileSingleElement直接进行单节点的dom diff，因为首次child为null，调用createFiberFromElement通过jsx创建fiber节点，然后通过created.return = returnFiber，建立父子关系，返回created，执行完毕，返回workInProgress.child，进行深度优先遍历,接下来因为一般render函数的第一个参数为函数组件，此时函数组件并没有alternate属性，所以current为空，设置didReceiveUpdate为false,在mount时FunctionComponent是按indeterminate处理的，调用mountIndeterminateComponent，取pendingProps，调用RenderWithHooks，判断current是否为null，调用HooksDispatcherOnMount或者HooksDispatcherOnUpdate，直接调用component函数，获取jsx对象，返回jsx对象，然后调用reconcileChildren对象，传入null，走初次渲染逻辑，初次渲染走插入逻辑，也就是将flags设置为2，走Placement逻辑，接着通过beingWork返回的的next，判断是否为Null，不为Null赋值workInProgress，循环performUnitOfWork逻辑，当next为null时，递的mount流程结束，调用completeUnitOfWork，完成第一个fiber节点，通过return和sibling，往上走到root。
+当首屏渲染时，通过prepareFreshStack，初始化FiberRoot的finishedWork属性，同时通过root.current创建新的workInProgress，然后判断workInProgress !== null，while循环调用performUnitOfWork，performUnitOfWork当中开始进行beginWork，beginWork执行完毕，将新属性同步到老属性上面，unitOfWork.memoizedProps = unitOfWork.pendingProps，beginWork的作用就是通过当前的Fiber创建子fiber，建立fiber链，根节点调用updateHostRoot，此时current和workInProgress一定会同时存在，调用reconcileChildren函数，传入current和workInProgess，，此时current !== null,直接走更新逻辑，通过reconcileSingleElement直接进行单节点的dom diff，因为首次child为null，调用createFiberFromElement通过jsx创建fiber节点，然后通过created.return = returnFiber，建立父子关系，返回created，执行完毕，返回workInProgress.child，进行深度优先遍历,接下来因为一般render函数的第一个参数为函数组件，此时函数组件并没有alternate属性，所以current为空，设置didReceiveUpdate为false,didReceiveUpdate用来判断fiber是否有变化，通过pendingProps和memoizedProps来赋值didReceiveUpdate，在mount时FunctionComponent是按indeterminate处理的，调用mountIndeterminateComponent，取pendingProps，调用RenderWithHooks，判断current是否为null，调用HooksDispatcherOnMount或者HooksDispatcherOnUpdate，直接调用component函数，获取jsx对象，返回jsx对象，然后调用reconcileChildren对象，传入null，走初次渲染逻辑，初次渲染走插入逻辑，也就是将flags设置为2，走Placement逻辑，接着通过beingWork返回的的next，判断是否为Null，不为Null赋值workInProgress，循环performUnitOfWork逻辑，当next为null时，递的mount流程结束，调用completeUnitOfWork，完成第一个fiber节点，通过return和sibling，往上走到root。
 
 
 ![avatar](./img/beginWork.png)
@@ -48,15 +48,73 @@ IO的瓶颈如何解决
 
 
 
-首次渲染调用completeWork时，alternate为null，那倒newProps，也就是workInProgress的pendingProps，判断workInProgress.tag，如果为HostComponent，通过判断current和workInProgress.stateNode区分是更新还是初始化，初始化逻辑调用createInstance创建实例，由于是深度优先遍历，当workInProgress进行归阶段时，也就意味着其子树的dom节点已创建，所以只需将子树中离instance最近的dom节点追加到instance上即可，调用finalizeInitialChildren，初始化instance，也就是dom的属性，然后通过return和sibling向上初始化，完成之后，获取root.current.alternate，也就是workInProgress，设置为root.finishedWork，调用commitRoot，通过Fibr上的flags副作用，进行节点操作。
+首次渲染调用completeWork时，alternate为null，拿到newProps，也就是workInProgress的pendingProps，判断workInProgress.tag，如果为HostComponent，通过判断current和workInProgress.stateNode区分是更新还是初始化，初始化逻辑调用createInstance创建实例，由于是深度优先遍历，当workInProgress进行归阶段时，也就意味着其子树的dom节点已创建，所以只需将子树中离instance最近的dom节点追加到instance上即可，调用finalizeInitialChildren，初始化instance，也就是dom的属性，然后通过return和sibling向上初始化，完成之后，获取root.current.alternate，也就是workInProgress，设置为root.finishedWork，调用commitRoot。
 
 ![avatar](./img/completeWork.png)
 
 ### commitRoot
 
-核心实现在于commitBeforeMutationEffects，class组件会在其中执行getSnapshotBeforeUpdate，因为只实现了functionComponent，所以可以忽略，commitMutationEffects，mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作,在commitMutationEffects执行完毕之后，root.current = finishedWork，此时改变rootFiberNode的指针，指向最新的workInProgress，最后一步执行commitLayoutEffects，LayoutEffects阶段，在其中执行useLayoutEffect的create函数，这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后，此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的操作放到useEffect中，因为他是被Scheduler模块调度，被postMessage注册到宏任务里面的，等到他执行时下一帧已经渲染出来，dom操作后的效果已经体现在了页面上了，如果此时动画的起点还是前一帧的话页面就会出现闪烁的情况。
+核心实现在于遍历副作用链表，实现更新逻辑，commitBeforeMutationEffects，class组件会在其中执行getSnapshotBeforeUpdate，因为只实现了functionComponent，所以可以忽略，commitMutationEffects，mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作,在commitMutationEffects执行完毕之后，root.current = finishedWork，此时改变rootFiberNode的指针，指向最新的workInProgress，最后一步执行commitLayoutEffects，LayoutEffects阶段，在其中执行useLayoutEffect的create函数，这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后，此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的操作放到useEffect中，因为他是被Scheduler模块调度，被postMessage注册到宏任务里面的，等到他执行时下一帧已经渲染出来，dom操作后的效果已经体现在了页面上了，如果此时动画的起点还是前一帧的话页面就会出现闪烁的情况。
 
 <br/>
+
+### collectEffectList
+
+作为DOM操作的依据，commit阶段需要找到所有有effectTag的Fiber节点并依次执行effectTag对应操作。难道需要在commit阶段再遍历一次Fiber树寻找effectTag !== null的Fiber节点么？
+
+这显然是很低效的。
+
+为了解决这个问题，在completeWork的上层函数completeUnitOfWork中，每个执行完completeWork且存在effectTag的Fiber节点会被保存在一条被称为effectList的单向链表中。
+
+effectList中第一个Fiber节点保存在fiber.firstEffect，最后一个元素保存在fiber.lastEffect。
+
+类似appendAllChildren，在“归”阶段，所有有effectTag的Fiber节点都会被追加在effectList中，最终形成一条以rootFiber.firstEffect为起点的单向链表。
+
+这样，在commit阶段只需要遍历effectList就能执行所有effect了。
+
+![avatar](./img/collectEffectList.jpg)
+
+```javaScript
+
+  function collectEffectList(returnFiber, completedWork) {
+    if (returnFiber) {
+      //如果父亲 没有effectList,那就让父亲 的firstEffect链表头指向自己的头
+      if (!returnFiber.firstEffect) {
+        returnFiber.firstEffect = completedWork.firstEffect;
+      } 
+      //如果自己有链表尾
+      if (completedWork.lastEffect) {
+        //并且父亲也有链表尾
+        if (returnFiber.lastEffect) {
+          //把自己身上的effectlist挂接到父亲的链表尾部
+          returnFiber.lastEffect.nextEffect = completedWork.firstEffect;
+        }
+        returnFiber.lastEffect = completedWork.lastEffect;
+      }
+      var flags = completedWork.flags; //如果此完成的fiber有副使用，那么就需要添加到effectList里
+      if (flags) {
+        //如果父fiber有lastEffect的话，说明父fiber已经有effect链表
+        if (returnFiber.lastEffect) {
+          returnFiber.lastEffect.nextEffect = completedWork;
+        } else {
+          returnFiber.firstEffect = completedWork;
+        }
+
+        returnFiber.lastEffect = completedWork;
+      }
+    }
+  }
+  let rootFiber = { key: 'rootFiber' };
+  let fiberA = { key: 'A', flags: Placement };
+  let fiberB = { key: 'B', flags: Placement };
+  let fiberC = { key: 'C', flags: Placement };
+  //rootFiber->A-BC 
+  //B把自己的fiber给A
+  collectEffectList(fiberA, fiberB);
+  collectEffectList(fiberA, fiberC);
+  collectEffectList(rootFiber, fiberA);
+  
+```
 
 ### React切片
 
@@ -269,7 +327,9 @@ type BaseFiberRootProperties = {
 <br/>
 
 
-### DomDiff的三个原则
+### DomDiff
+
+DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
 
 1.只对同级元素进行比较
 
@@ -277,9 +337,7 @@ type BaseFiberRootProperties = {
 
 3.可以通过key来标识同一个节点
 
-DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程
-
-<font color="orange">单节点</font>
+<font color="red">单节点</font>
 
   1.新旧节点 type 和 key 都不一样，标记为删除
 
@@ -291,12 +349,58 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ![avatar](./img/singleDomDiff.jpg)
 
-<font color="orange">多节点</font>
+### 多节点
 
-  1.如果新的节点有多个的话
-  我们经过二轮遍历
-  第一轮处理更新的情况 属性和类型 type 的更新 更新或者说保持 不变的频率会比较高
-  第二轮处理新增 删除 移动 的情况
+<font color="red">第一轮</font>
+
+如果新的节点有多个的话我们经过二轮遍历第一轮处理更新的情况 属性和类型 type 的更新 更新或者说保持 不变的频率会比较高
+
+1. let i = 0，遍历newChildren，将newChildren[i]与oldFiber比较，判断DOM节点是否可复用。
+
+2. 如果可复用，i++，继续比较newChildren[i]与oldFiber.sibling，可以复用则继续遍历。
+
+3. 如果不可复用，分两种情况：
+
+    + key不同导致不可复用，立即跳出整个遍历，第一轮遍历结束。
+
+    + key相同type不同导致不可复用，会将oldFiber标记为DELETION，并继续遍历
+
+4. 如果newChildren遍历完（即i === newChildren.length - 1）或者oldFiber遍历完（即oldFiber.sibling === null），跳出遍历，第一轮遍历结束
+
+<font color="red">第二轮</font>
+
+第二轮处理新增 删除 移动 的情况
+
+newChildren与oldFiber同时遍历完
+那就是最理想的情况：只需在第一轮遍历进行组件更新 (opens new window)。此时Diff结束。
+
+newChildren没遍历完，oldFiber遍历完
+已有的DOM节点都复用了，这时还有新加入的节点，意味着本次更新有新节点插入，我们只需要遍历剩下的newChildren为生成的workInProgress fiber依次标记Placement。
+
+newChildren遍历完，oldFiber没遍历完
+意味着本次更新比之前的节点数量少，有节点被删除了。所以需要遍历剩下的oldFiber，依次标记Deletion。
+
+newChildren与oldFiber都没遍历完
+这意味着有节点在这次更新中改变了位置。
+由于有节点改变了位置，所以不能再用位置索引i对比前后的节点，我们使用key，核心逻辑在于mapRemainingChildren
+
+```javaScript
+   更新前: [<div key="1">1<div>, <div key="2">2</div>, <div key="3">3</div>]
+   更新后: [<div key="3">3</div>, <div key="1">1<div>]
+   在这次更新中子元素的位置发生了变化，而且2还被删除了
+   由于第一个newChild进行工作时就会发现，同一位置前后元素
+   一个key是1一个是3，所以并没有成功复用节点就会直接break进入这里的updateFromMap逻辑
+   所以会更具current fiber节点构建出以下map
+   {
+      *   1 -> <div key="1">1</div>,
+      *   2 -> <div key="2">2</div>,
+      *   3 -> <div key="3">3</div>,
+   }
+   由于3节点和1节点都成功被复用,所以都会被从map中删除
+   所以此时map中还剩下一个2节点，此时就能知道这个2节点
+   就是没有被复用的废弃节点待会需要将这些废弃节点标记删除
+   这里也就是将2节点标记删除
+```
 
 ```javaScript
   <ul>
@@ -327,7 +431,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ## 事件代理
 
-+ <font color="orange">捕获事件是先注册先执行，冒泡事件是先注册后执行</font>
++ <font color="red">捕获事件是先注册先执行，冒泡事件是先注册后执行</font>
 
 - React17之前事件会冒泡到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root节点 上了)
 

@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-14 15:53:31
+ * @LastEditTime: 2023-01-14 15:57:24
 -->
 ### React架构
 
@@ -165,11 +165,11 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
 
-** 只对同级元素进行比较 **
+**只对同级元素进行比较**
 
-** 不同的类型对应不同的元素 **
+**不同的类型对应不同的元素**
 
-** 可以通过key来标识同一个节点 **
+**可以通过key来标识同一个节点**
 
 单节点
 

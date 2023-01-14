@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-14 15:48:36
+ * @LastEditTime: 2023-01-14 15:53:31
 -->
 ### React架构
 
@@ -163,15 +163,15 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 ### DomDiff
 
-~DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
+DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
 
-<font color="blue">只对同级元素进行比较</font>
+** 只对同级元素进行比较 **
 
-[不同的类型对应不同的元素]()
+** 不同的类型对应不同的元素 **
 
-[可以通过key来标识同一个节点]()
+** 可以通过key来标识同一个节点 **
 
-<font color="red">单节点</font>
+单节点
 
   1.新旧节点 type 和 key 都不一样，标记为删除
 
@@ -185,7 +185,7 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 ### 多节点
 
-<font color="red">第一轮</font>
+第一轮
 
 1.如果key不同则直接结束本轮循环
 
@@ -195,7 +195,7 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 4.key相同而type也相同，则可以复用老节oldFiber节点，继续循环
 
-<font color="red">第二轮</font>
+第二轮
 
 1.newChildren遍历完而oldFiber还有，遍历剩下所有的oldFiber标记为删除，DIFF结束
 
@@ -205,7 +205,7 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 4.newChildren和oldFiber都没有完成，则进行节点移动的逻辑
 
-<font color="red">第三轮</font>
+第三轮
 
 处理节点移动的情况
 
@@ -511,7 +511,7 @@ type BaseFiberRootProperties = {
 
 ## 事件代理
 
-+ <font color="red">捕获事件是先注册先执行，冒泡事件是先注册后执行</font>
++ 捕获事件是先注册先执行，冒泡事件是先注册后执行
 
 - React17之前事件会冒泡到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root节点 上了)
 

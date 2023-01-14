@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-14 12:32:25
+ * @LastEditTime: 2023-01-14 15:42:39
 -->
 ### React架构
 
@@ -165,11 +165,11 @@ diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣
 
 DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
 
-1.只对同级元素进行比较
+[只对同级元素进行比较]()
 
-2.不同的类型对应不同的元素
+[不同的类型对应不同的元素]()
 
-3.可以通过key来标识同一个节点
+[可以通过key来标识同一个节点]()
 
 <font color="red">单节点</font>
 
@@ -318,6 +318,8 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 8.多个节点数量不同、key不同(难点，处理移动)
 
 (删除#li#F)=>(移动#li#B)=>(插入#li#G)=>(插入#li#D)=>null
+
+移动的核心在于lastPlaceIndex的值，默认lastPlaceIndex为0，拿新children索引和老children索引进行比较，如果老的fiber索引大于lasterPlaceIndex，则不需要移动，更新lastPlaceIndex的值，否则需要移动，lastPlaceIndex不变，循环结束，将剩下Fiber直接为Deletion
 
 ```javaScript
   <ul key="ul">

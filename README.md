@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-12 22:06:52
+ * @LastEditTime: 2023-01-14 12:32:25
 -->
 ### React架构
 
@@ -14,7 +14,7 @@
 
 React是用**javaScript**构建快速响应的大型web应用的首选方式，何为快速响应？
 
-当遇到大量操作计算或者设备性能产生的页面掉帧导致卡顿，发发送网络请求后，由于需要等待数据返回才能进一步操作导致不能快速响应，这两类场景可以概括为**CPU**的瓶颈和**IO**的瓶颈，react如何解决？
+当遇到大量操作计算或者设备性能产生的页面掉帧导致卡顿，发送网络请求后，由于需要等待数据返回才能进一步操作导致不能快速响应，这两类场景可以概括为**CPU**的瓶颈和**IO**的瓶颈，react如何解决？
 
 在浏览器每一帧的时间中，预留一些时间给JS线程，React利用这部分时间更新组件（可以看到，在源码 (opens new window)中，预留的初始时间是5ms）
 ƒ
@@ -139,7 +139,7 @@ createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl
 
 ### Fiber双缓存树
 
-1.react根据双缓冲机制维护了两个fiber树
+1.react根据双缓冲机制维护了两个fiber树，因为更新时依赖于老状态的
 
 current Fiber树：用于渲染页面
 
@@ -158,6 +158,187 @@ render阶段会根据最新的jsx生成的虚拟dom和current Fiber树进行对�
 diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣成 workInprogress Fiber
 
 ## ![avatar](./img/renderRootFiber.jpg)
+
+<br/>
+
+### DomDiff
+
+DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
+
+1.只对同级元素进行比较
+
+2.不同的类型对应不同的元素
+
+3.可以通过key来标识同一个节点
+
+<font color="red">单节点</font>
+
+  1.新旧节点 type 和 key 都不一样，标记为删除
+
+  2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
+  再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
+
+  3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
+  直接把老的节点全部删除
+
+![avatar](./img/singleDomDiff.jpg)
+
+### 多节点
+
+<font color="red">第一轮</font>
+
+1.如果key不同则直接结束本轮循环
+
+2.newChildren或oldFiber遍历完，结束本轮循环
+
+3.key相同而type不同，标记老的oldFiber为删除，继续循环
+
+4.key相同而type也相同，则可以复用老节oldFiber节点，继续循环
+
+<font color="red">第二轮</font>
+
+1.newChildren遍历完而oldFiber还有，遍历剩下所有的oldFiber标记为删除，DIFF结束
+
+2.oldFiber遍历完了，而newChildren还有，将剩下的newChildren标记为插入，DIFF结束
+
+3.newChildren和oldFiber都同时遍历完成，diff结束
+
+4.newChildren和oldFiber都没有完成，则进行节点移动的逻辑
+
+<font color="red">第三轮</font>
+
+处理节点移动的情况
+
+1.key相同,类型相同,数量相同
+
+(更新#div#title)=>null
+
+```javaScript
+  <div key="title" id="title">
+     div
+  </div>
+
+  <div key="title" id="title2">
+    div2
+  </div>
+```
+
+2.key相同,类型不同，删除老节点，添加新节点
+
+(删除#div#title)=>(插入#p#title)=>null
+
+```javaScript
+  <div key="title" id="title">
+   div
+  </div>
+
+  <p key="title" id="title">
+   p
+  </p>
+```
+3.类型相同,key不同,删除老节点，添加新节点
+
+(删除#div#title1)=>(插入#div#title2)=>null
+
+```javaScript
+  <div key="title1" id="title">
+    title
+  </div>
+  <div key="title2" id="title">
+    title
+   </div>
+```
+
+4.原来多个节点，现在只有一个节点,删除多余节点
+
+(删除#li#A)=>(删除#li#C)=>(更新#li#B)=>null
+
+```javaScript
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B">B</li>
+    <li key="C">C</li>
+  </ul>
+
+  <ul key="ul">
+    <li key="B" id="B2">B2</li>
+  </ul>
+```
+
+5.多个节点的数量、类型和key全部相同，只更新属性
+
+(删除#li#B)=>(插入#p#B)=>(更新#li#C)=>null
+
+```javaScript
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B">B</li>
+    <li key="C"id="C">C</li>
+  </ul>
+
+  <ul key="ul">
+    <li key="A">A</li>
+    <p key="B" id="B2">B2</p>
+    <li key="C" id="C2" >C2</li>
+  </ul>
+``` 
+6.多个节点的类型和key全部相同，有新增元素
+
+(更新#li#B)=>(插入#li#D)=>null
+
+```javaScript
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B">B</li>
+    <li key="C">C</li>
+  </ul>
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B2">B2</li>
+    <li key="C">C</li>
+    <li key="D">D</li>
+  </ul>
+```
+7.多个节点的类型和key全部相同，有删除老元素
+
+(删除#li#C)=>(更新#li#B)=>null
+
+```javaScript
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B">B</li>
+    <li key="C">C</li>
+  </ul>
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="B2">B2</li>
+  </ul>
+```
+
+8.多个节点数量不同、key不同(难点，处理移动)
+
+(删除#li#F)=>(移动#li#B)=>(插入#li#G)=>(插入#li#D)=>null
+
+```javaScript
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="B" id="b">B</li>
+    <li key="C">C</li>
+    <li key="D">D</li>
+    <li key="E">E</li>
+    <li key="F">F</li>
+  </ul>
+  <ul key="ul">
+    <li key="A">A</li>
+    <li key="C">C</li>
+    <li key="E">E</li>
+    <li key="B" id="b2">B2</li>
+    <li key="G">G</li>
+    <li key="D">D</li>
+  </ul>
+```
+
+![avatar](./img/domDiff_move.jpg)
 
 <br/>
 
@@ -324,93 +505,6 @@ type BaseFiberRootProperties = {
         console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
      });
 ```
-<br/>
-
-
-### DomDiff
-
-DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
-
-1.只对同级元素进行比较
-
-2.不同的类型对应不同的元素
-
-3.可以通过key来标识同一个节点
-
-<font color="red">单节点</font>
-
-  1.新旧节点 type 和 key 都不一样，标记为删除
-
-  2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
-  再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
-
-  3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
-  直接把老的节点全部删除
-
-![avatar](./img/singleDomDiff.jpg)
-
-### 多节点
-
-<font color="red">第一轮</font>
-
-如果新的节点有多个的话我们经过二轮遍历第一轮处理更新的情况 属性和类型 type 的更新 更新或者说保持 不变的频率会比较高
-
-1. let i = 0，遍历newChildren，将newChildren[i]与oldFiber比较，判断DOM节点是否可复用。
-
-2. 如果可复用，i++，继续比较newChildren[i]与oldFiber.sibling，可以复用则继续遍历。
-
-3. 如果不可复用，分两种情况：
-
-    + key不同导致不可复用，立即跳出整个遍历，第一轮遍历结束。
-
-    + key相同type不同导致不可复用，会将oldFiber标记为DELETION，并继续遍历
-
-4. 如果newChildren遍历完（即i === newChildren.length - 1）或者oldFiber遍历完（即oldFiber.sibling === null），跳出遍历，第一轮遍历结束
-
-<font color="red">第二轮</font>
-
-第二轮处理新增 删除 移动 的情况
-
-newChildren与oldFiber同时遍历完
-那就是最理想的情况：只需在第一轮遍历进行组件更新 (opens new window)。此时Diff结束。
-
-newChildren没遍历完，oldFiber遍历完
-已有的DOM节点都复用了，这时还有新加入的节点，意味着本次更新有新节点插入，我们只需要遍历剩下的newChildren为生成的workInProgress fiber依次标记Placement。
-
-newChildren遍历完，oldFiber没遍历完
-意味着本次更新比之前的节点数量少，有节点被删除了。所以需要遍历剩下的oldFiber，依次标记Deletion。
-
-newChildren与oldFiber都没遍历完
-这意味着有节点在这次更新中改变了位置。
-由于有节点改变了位置，所以不能再用位置索引i对比前后的节点，我们使用key，核心逻辑在于mapRemainingChildren
-
-```javaScript
-  <ul>
-    <li key="A">A</li>
-    <li key="B">B</li>
-    <li key="C">C</li>
-    <li key="D">D</li>
-    <li key="E">E</li>
-    <li key="F">F</li>
-    </ul>
-    /*************/
-    <ul>
-    <li key="A">A-NEW</li>
-    <li key="C">C-NEW</li>
-    <li key="E">E-NEW</li>
-    <li key="B">B-NEW</li>
-    <li key="G">G-NEW</li>
-  </ul>
-  // 如果第一轮遍历的时候，发现key不一样，则立刻跳出第一轮循环
-  // key不一样，说明可能有位置变化，更新A
-  // 第二轮循环，新建map={"B":"B","C":"C","D":"D","E":"E","F":"F"}，可以复用的节点标记为更新
-  // 从map中删除，然后map={"D":"D","F":"F"}，还没有被复用的fiber节点，等新的jsx数组遍历完之后，
-  // 把map中的所有节点标记为删除，再更新，然后移动，记录第一轮的lastPlaceIndex，
-  // 最小的oldIndex移动，最后插入新元素。
-```
-
-![avatar](./img/moreDomDiff.png)
-
 <br/>
 
 ## 事件代理

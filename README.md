@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-14 15:57:24
+ * @LastEditTime: 2023-01-14 15:58:43
 -->
 ### React架构
 
@@ -171,7 +171,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 **可以通过key来标识同一个节点**
 
-单节点
+### 单节点
 
   1.新旧节点 type 和 key 都不一样，标记为删除
 
@@ -185,7 +185,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ### 多节点
 
-第一轮
+**第一轮**
 
 1.如果key不同则直接结束本轮循环
 
@@ -195,7 +195,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 4.key相同而type也相同，则可以复用老节oldFiber节点，继续循环
 
-第二轮
+**第二轮**
 
 1.newChildren遍历完而oldFiber还有，遍历剩下所有的oldFiber标记为删除，DIFF结束
 
@@ -205,9 +205,11 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 4.newChildren和oldFiber都没有完成，则进行节点移动的逻辑
 
-第三轮
+**第三轮**
 
 处理节点移动的情况
+
+<br/>
 
 1.key相同,类型相同,数量相同
 

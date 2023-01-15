@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-14 15:58:43
+ * @LastEditTime: 2023-01-15 17:15:39
 -->
 ### React架构
 
@@ -36,8 +36,11 @@ IO的瓶颈如何解决
 
 ### beginWork
 
+当首屏渲染时，调用begingWork，同时通过root.current创建新的workInProgress，然后判断workInProgress !== null，while循环调用performUnitOfWork，performUnitOfWork当中开始进行beginWork，beginWork执行完毕，将新属性同步到老属性上面，unitOfWork.memoizedProps = unitOfWork.pendingProps，
 
-当首屏渲染时，通过prepareFreshStack，初始化FiberRoot的finishedWork属性，同时通过root.current创建新的workInProgress，然后判断workInProgress !== null，while循环调用performUnitOfWork，performUnitOfWork当中开始进行beginWork，beginWork执行完毕，将新属性同步到老属性上面，unitOfWork.memoizedProps = unitOfWork.pendingProps，beginWork的作用就是通过当前的Fiber创建子fiber，建立fiber链，根节点调用updateHostRoot，此时current和workInProgress一定会同时存在，调用reconcileChildren函数，传入current和workInProgess，，此时current !== null,直接走更新逻辑，通过reconcileSingleElement直接进行单节点的dom diff，因为首次child为null，调用createFiberFromElement通过jsx创建fiber节点，然后通过created.return = returnFiber，建立父子关系，返回created，执行完毕，返回workInProgress.child，进行深度优先遍历,接下来因为一般render函数的第一个参数为函数组件，此时函数组件并没有alternate属性，所以current为空，设置didReceiveUpdate为false,didReceiveUpdate用来判断fiber是否有变化，通过pendingProps和memoizedProps来赋值didReceiveUpdate，在mount时FunctionComponent是按indeterminate处理的，调用mountIndeterminateComponent，取pendingProps，调用RenderWithHooks，判断current是否为null，调用HooksDispatcherOnMount或者HooksDispatcherOnUpdate，直接调用component函数，获取jsx对象，返回jsx对象，然后调用reconcileChildren对象，传入null，走初次渲染逻辑，初次渲染走插入逻辑，也就是将flags设置为2，走Placement逻辑，接着通过beingWork返回的的next，判断是否为Null，不为Null赋值workInProgress，循环performUnitOfWork逻辑，当next为null时，递的mount流程结束，调用completeUnitOfWork，完成第一个fiber节点，通过return和sibling，往上走到root。
+beginWork的作用就是通过当前的Fiber创建子fiber，建立fiber链，根节点调用updateHostRoot，此时current和workInProgress一定会同时存在，调用reconcileChildren函数，传入current和workInProgess，，此时current !== null,直接走更新逻辑，通过reconcileSingleElement直接进行单节点的dom diff，因为首次child为null，调用createFiberFromElement通过jsx创建fiber节点，然后通过created.return = returnFiber，建立父子关系，返回created，执行完毕，返回workInProgress.child，
+
+然后进行深度优先遍历,接下来因为一般render函数的第一个参数为函数组件，此时函数组件并没有alternate属性，所以current为空，设置**didReceiveUpdate**为false,**didReceiveUpdate**用来判断fiber是否有变化，通过pendingProps和memoizedProps比较来赋值didReceiveUpdate，在mount时FunctionComponent是按indeterminate处理的，调用mountIndeterminateComponent，取pendingProps，调用RenderWithHooks，判断current是否为null，调用HooksDispatcherOnMount或者HooksDispatcherOnUpdate，直接调用component函数，获取jsx对象，返回jsx对象，然后调用reconcileChildren对象，传入null，走初次渲染逻辑，初次渲染走插入逻辑，也就是将flags设置为2，走Placement逻辑，接着通过beingWork返回的的next，判断是否为Null，不为Null赋值workInProgress，循环performUnitOfWork逻辑，当next为null时，递的mount流程结束，调用completeUnitOfWork，完成第一个fiber节点，通过return和sibling，往上走到root。
 
 
 ![avatar](./img/beginWork.png)
@@ -46,15 +49,19 @@ IO的瓶颈如何解决
 
 ### completeWork
 
-
-
 首次渲染调用completeWork时，alternate为null，拿到newProps，也就是workInProgress的pendingProps，判断workInProgress.tag，如果为HostComponent，通过判断current和workInProgress.stateNode区分是更新还是初始化，初始化逻辑调用createInstance创建实例，由于是深度优先遍历，当workInProgress进行归阶段时，也就意味着其子树的dom节点已创建，所以只需将子树中离instance最近的dom节点追加到instance上即可，调用finalizeInitialChildren，初始化instance，也就是dom的属性，然后通过return和sibling向上初始化，完成之后，获取root.current.alternate，也就是workInProgress，设置为root.finishedWork，调用commitRoot。
 
 ![avatar](./img/completeWork.png)
 
 ### commitRoot
 
-核心实现在于遍历副作用链表，实现更新逻辑，commitBeforeMutationEffects，class组件会在其中执行getSnapshotBeforeUpdate，因为只实现了functionComponent，所以可以忽略，commitMutationEffects，mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作,在commitMutationEffects执行完毕之后，root.current = finishedWork，此时改变rootFiberNode的指针，指向最新的workInProgress，最后一步执行commitLayoutEffects，LayoutEffects阶段，在其中执行useLayoutEffect的create函数，这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后，此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的操作放到useEffect中，因为他是被Scheduler模块调度，被postMessage注册到宏任务里面的，等到他执行时下一帧已经渲染出来，dom操作后的效果已经体现在了页面上了，如果此时动画的起点还是前一帧的话页面就会出现闪烁的情况。
+核心实现在于遍历副作用链表，实现更新逻辑
+
+**commitBeforeMutationEffects**，class组件会在其中执行getSnapshotBeforeUpdate，因为只实现了functionComponent，所以可以忽略。
+
+**commitMutationEffects**，mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作,在commitMutationEffects执行完毕之后，root.current = finishedWork，此时改变rootFiberNode的指针，指向最新的workInProgress。
+
+**commitLayoutEffects**，LayoutEffects阶段，在其中执行useLayoutEffect的create函数，这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后，此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的操作放到useEffect中，因为他是被Scheduler模块调度，被postMessage注册到宏任务里面的，等到他执行时下一帧已经渲染出来，dom操作后的效果已经体现在了页面上了，如果此时动画的起点还是前一帧的话页面就会出现闪烁的情况。
 
 <br/>
 
@@ -348,99 +355,185 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ### Fiber数据结构
 
-**BaseFiberRootProperties**定义了fiberRoot大部分属性
+Fiber有FiberRoot和普通Fiber节点，这里展示的普通Fiber节点
 
 ```javaScript
-type BaseFiberRootProperties = {
-    // 类型
-    tag: RootTag,
-    // root节点，也就是ReactDOM.render(<App />, document.getElementById('root'))的第二个参数
-    containerInfo: any,
-    // 老的Fiber节点，用来复用
-    current: {
-        alternate:FiberNode,
-        child:{
-          //当前Fiber的替身
-          alternate:null
-          child:null
-          childLanes:0
-          deletions: null
-          elementType:"div"
-          flags:0
-          index:0
-          // key用于标记元素是否可复用
-          key:null
-          lanes:0
-          // 记录上一次的更新状态
-          memoizedProps:{ children: '渲染内容' }
-          memoizedState:null
-          mode:0
-          // 最新的状态，update依赖于memoizedProps，也用于判断是否更新
-          pendingProps:{ children: '渲染内容' }
-          // 父级Fiber节点
-          return: FiberNode { tag: 3, pendingProps: null, key: null, mode: 0, 
-          // 兄弟节点
-          sibling:null
-          // 真实的DOM节点
-          stateNode:div
-          subtreeFlags:0
-          // 当前的Fiber类型
-          tag:5
-          // 真实Dom的节点类型
-          type:"div"
-          updateQueue:null
-      }
-    },
-    //任务有三种，优先级有高低：
-    //（1）没有提交的任务
-    //（2）没有提交的被挂起的任务
-    //（3）没有提交的可能被挂起的任务
-    //当前更新对应的过期时间
-    finishedExpirationTime: ExpirationTime,
-    // 已经完成任务的FiberRoot对象，如果你只有一个Root，那么该对象就是这个Root对应的Fiber或null
-    // 在commit(提交)阶段只会处理该值对应的任务
-    finishedWork: Fiber | null,
-    // 在任务被挂起的时候，通过setTimeout设置的响应内容，
-    // 并且清理之前挂起的任务 还没触发的timeout
-    timeoutHandle: TimeoutHandle | NoTimeout,
-    // 顶层context对象，只有主动调用renderSubtreeIntoContainer才会生效
-    context: Object | null,
-    pendingContext: Object | null,
-    // 用来判断 第一次渲染 是否需要融合
-    hydrate: boolean,
-    firstBatch: Batch | null,
-    callbackNode: *,
-    // 跟root有关联的回调函数的时间
-    callbackExpirationTime: ExpirationTime,
-    // 存在root中，最旧的挂起时间
-    // 不确定是否挂起的状态（所有任务一开始均是该状态）
-    firstPendingTime: ExpirationTime,
-    // 存在root中，最新的挂起时间
-    // 不确定是否挂起的状态（所有任务一开始均是该状态）
-    lastPendingTime: ExpirationTime,
-    // 挂起的组件通知root再次渲染的时间
-    // 通过一个promise被reslove并且可以重新尝试的优先级
-    pingTime: ExpirationTime,
-    // 更新队列
-    UpdateQueue:{
-      // 前一次更新计算得出的状态，它是第一个被跳过的update之前的那些update计算得出的state。会以它为基础计算本次的state
-      baseState: State
-      // 存储着本次更新的update队列，是实际的updateQueue。shared的意思是current节点与workInProgress节点共享一条更新队列。
-      shared: {
-        pending: Update | null
-      }
-      // 前一次更新时updateQueue中第一个被跳过的update对象
-      firstBaseUpdate: Update | null
-      // lastBaseUpdate相当于，前一次更新中，updateQueue中以第一个被跳过的update为起点一直到的最后一个update的形成的链表，截取最后一个而获得的update
-      lastBaseUpdate: Update | null
+type Fiber = {
+   /**
+   * 该fiber节点处于同级兄弟节点的第几位
+   */
+  index: number
+  /**
+   * 此次commit中需要删除的fiber节点
+   */
+  deletions: Fiber[] | null
+  /**
+   * 子树带有的更新操作，用于减少查找fiber树上更新的时间复杂度
+   */
+  subtreeFlags: Flags
+  /**
+   *一个Bitset代表该fiber节点上带有的更新操作,比如第二位为1就代表该节点需要插入
+   */
+  flags: Flags
+  /**
+   * 新创建jsx对象的第二个参数,像HostRoot这种内部自己创建的Fiber节点为null
+   */
+  pendingProps: any
+  /**
+   * 上一轮更新完成后的props
+   */
+  memoizedProps: any
+  /**
+   *其子节点为单链表结构child指向了他的第一个子节点后续子节点可通过child.sibling获得
+   */
+  child: Fiber | null
+
+  /**
+   * 该fiber节点的兄弟节点，他们都有着同一个父fiber节点
+   */
+  sibling: Fiber | null
+  /**
+   * 在我们的实现中只有Function组件对应的fiber节点使用到了该属性
+   * function组件会用他来存储hook组成的链表,在react中很多数据结构
+   * 都有该属性，注意不要弄混了
+   */
+  memoizedState: any
+  /**
+   * 该fiber节点对于的相关节点(类组件为为类实例，dom组件为dom节点)
+   */
+  stateNode: any
+
+  /**
+   * 存放了该fiber节点上的更新信息,其中HostRoot,FunctionComponent, HostComponent
+   * 的updateQueue各不相同，函数的组件的updateQueue是一个存储effect的链表
+   * 比如一个函数组件内有若干个useEffect，和useLayoutEffect，那每个effect
+   * 就会对应这样的一个数据结构
+   * {
+   *  tag: HookFlags //如果是useEffect就是Passive如果是useLayoutEffect就是Layout
+   *  create: () => (() => void) | void //useEffect的第一个参数
+   *  destroy: (() => void) | void //useEffect的返回值
+   *  deps: unknown[] | null //useEffect的第二个参数
+   *  next: Effect
+   * }
+   * 各个effect会通过next连接起来
+   * HostComponent的updateQueue表示了该节点所要进行的更新，
+   * 比如他可能长这样
+   * ['children', 'new text', 'style', {background: 'red'}]
+   * 代表了他对应的dom需要更新textContent和style属性
+   */
+  updateQueue: unknown  // 存储effect的链表
+
+  /**
+   * 表示了该节点的类型，比如HostComponent,FunctionComponent,HostRoot
+   * 详细信息可以查看react-reconciler\ReactWorkTags.ts
+   */
+  tag: WorkTag
+
+  /**
+   * 该fiber节点父节点（以HostRoot为tag的fiber节点return属性为null）
+   */
+  return: Fiber | null
+
+  /**
+   * 该节点链接了workInPrgress树和current fiber树之间的节点
+   */
+  alternate: Fiber | null 
+
+  /**
+   * 用于多节点children进行diff时提高节点复用的正确率
+   */
+  key: string | null
+
+  /**
+   * 如果是自定义组件则该属性就是和该fiber节点关联的function或class
+   * 如果是div,span则就是一个字符串
+   */
+  type: any
+
+  /**
+   * 表示了元素的类型，fiber的type属性会在reconcile的过程中改变，但是
+   * elementType是一直不变的，比如Memo组件的type在jsx对象中为
+   * {
+   *  $$typeof: REACT_MEMO_TYPE,
+   *  type,
+   *  compare: compare === undefined ? null : compare,
+   * }
+   * 在经过render阶段后会变为他包裹的函数，所以在render前后是不一致的
+   * 而我们在diff是需要判断一个元素的type有没有改变，
+   * 以判断能不能复用该节点，这时候elementType就派上用场
+   * 了，因为他是一直不变的
+   */
+  elementType: any
+
+  /**
+   * 描述fiber节点及其子树属性BitSet
+   * 当一个fiber被创建时他的该属性和父节点一致
+   * 当以ReactDom.render创建应用时mode为LegacyMode，
+   * 当以createRoot创建时mode为ConcurrentMode
+   */
+  mode: TypeOfMode
+
+  /**
+   * 用来判断该Fiber节点是否存在更新，以及改更新的优先级
+   */
+  lanes: Lanes
+  /**
+   * 用来判断该节点的子节点是否存在更新
+   */
+  childLanes: Lanes
+};
+```
+### useState
+
+useState在mount和update中，分别对应**HooksDispatcherOnMount**中的mountState和**HooksDispatcherOnUpdate**中的updateState
+
+```javaScript
+  // 这里的currentlyRenderingFiber其实就是workInProgress
+  ReactCurrentDispatcher.current = 
+  current === null || current.memoizedState === null
+        ? HooksDispatcherOnMount
+        : HooksDispatcherOnUpdate;  
+```
+
+useState本质就是useReducer
+
+useState在mout时使用的是**mountWorkInProgressHook**，而update使用的是**updateWorkInProgressHook**
+
++ **mountWorkInProgressHook**会在mount时执行，新建hook，并将所有的hook进行连接吗，同时返回链表的表尾
+
++ **updateWorkInProgressHook**大概逻辑为，如果第一次执行hook函数，从current获取memoizedState，也就是旧的hook，然后声明变量nextWorkInProgressHook，这里应该值得注意，正常情况下，一次renderWithHooks执行，workInProgress上的memoizedState会被置空，hooks函数顺序执行，nextWorkInProgressHook应该一直为null，那么什么情况下nextWorkInProgressHook不为null,也就是当一次renderWithHooks执行过程中，执行了多次函数组件，也就是在renderWithHooks中这段逻辑。
+
+hook的数据结构
+
+hook与FunctionComponent fiber都存在memoizedState属性，不要混淆他们的概念
+
++ fiber.memoizedState：FunctionComponent对应fiber保存的Hooks链表。
+
++ hook.memoizedState：Hooks链表中保存的单一hook对应的数据。
+
+```javaScript
+  const hook: Hook = {
+    // 最新的useState的值
+    memoizedState: "初始状态",
+    // 初始化的useState的值
+    baseState: "初始状态",
+    // 用于更新的优先级
+    baseQueue: null,
+    //  新的updateQueue
+    queue: {
+        // 与极简实现中的同名字段意义相同，保存update对象
+        pending: null,
+        // 保存dispatchAction.bind()的值
+        dispatch: null,
+        // 上一次render时使用的reducer
+        lastRenderedReducer: reducer,
+        // 上一次render时的state
+        lastRenderedState: (initialState: any),
     }
+    // 下一个hook
+    next: null,
   };
 ```
-### useState源码中dispatchAction如何执行
-
-![avatar](./img/createUpdateQueue.png)
-
-
 链表是另一种形式的链表存储结构,模拟源码enqueueUpdate方法
 
 它的特点是最后一个节点的指针区域指向头节点，整个链表形成一个环，永远指向最后一个更新
@@ -463,15 +556,16 @@ type BaseFiberRootProperties = {
   dispatchAction(queue,'action1')
   dispatchAction(queue,'action2')
   dispatchAction(queue,'action3')
-  // pedding: { action: 'action3', next: { action: 'action1', next: [Object] } }
+  // queue = {pedding: { action: 'action3', next: { action: 'action1', next: {action:'2',next:{action:"3"}} } }}
   const peddingQueue = queue.pedding;
   // 源码中的遍历环形链表
   while(peddingQueue){
     let first = peddingQueue.pedding;
     let update = first;
     do{
-       console.log(update) // action1 action2 action3
+       console.log(update)
        update = update.next;
+    // 首尾相等终止循环
     }while(update !== first){}
   }
 ```

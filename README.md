@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-15 17:15:39
+ * @LastEditTime: 2023-01-16 23:14:07
 -->
 ### React架构
 
@@ -123,25 +123,136 @@ effectList中第一个Fiber节点保存在fiber.firstEffect，最后一个元素
   
 ```
 
-### React切片
+### Fiber数据结构
 
-React分为两种模式,render和createRoot两种入口,分为**legacy**和**concurrent**两种
+Fiber有FiberRoot和普通Fiber节点，这里展示的普通Fiber节点
 
-**legacy模式**(同步)
+```javaScript
+type Fiber = {
+   /**
+   * 该fiber节点处于同级兄弟节点的第几位
+   */
+  index: number
+  /**
+   * 此次commit中需要删除的fiber节点
+   */
+  deletions: Fiber[] | null
+  /**
+   * 子树带有的更新操作，用于减少查找fiber树上更新的时间复杂度
+   */
+  subtreeFlags: Flags
+  /**
+   *一个Bitset代表该fiber节点上带有的更新操作,比如第二位为1就代表该节点需要插入
+   */
+  flags: Flags
+  /**
+   * 新创建jsx对象的第二个参数,像HostRoot这种内部自己创建的Fiber节点为null
+   */
+  pendingProps: any
+  /**
+   * 上一轮更新完成后的props
+   */
+  memoizedProps: any
+  /**
+   *其子节点为单链表结构child指向了他的第一个子节点后续子节点可通过child.sibling获得
+   */
+  child: Fiber | null
 
-render调用legacyRenderSubtreeIntoContainer，最后createRootImpl会调用到createFiberRoot创建fiberRootNode,然后调用createHostRootFiber创建rootFiber，其中fiberRootNode是整个项目的的根节点，rootFiber是当前应用挂在的节点，也就是ReactDOM.render调用后的根节点
+  /**
+   * 该fiber节点的兄弟节点，他们都有着同一个父fiber节点
+   */
+  sibling: Fiber | null
+  /**
+   * 在我们的实现中只有Function组件对应的fiber节点使用到了该属性
+   * function组件会用他来存储hook组成的链表,在react中很多数据结构
+   * 都有该属性，注意不要弄混了
+   */
+  memoizedState: any
+  /**
+   * 该fiber节点对于的相关节点(类组件为为类实例，dom组件为dom节点)
+   */
+  stateNode: any
 
+  /**
+   * 存放了该fiber节点上的更新信息,其中HostRoot,FunctionComponent, HostComponent
+   * 的updateQueue各不相同，函数的组件的updateQueue是一个存储effect的链表
+   * 比如一个函数组件内有若干个useEffect，和useLayoutEffect，那每个effect
+   * 就会对应这样的一个数据结构
+   * {
+   *  tag: HookFlags //如果是useEffect就是Passive如果是useLayoutEffect就是Layout
+   *  create: () => (() => void) | void //useEffect的第一个参数
+   *  destroy: (() => void) | void //useEffect的返回值
+   *  deps: unknown[] | null //useEffect的第二个参数
+   *  next: Effect
+   * }
+   * 各个effect会通过next连接起来
+   * HostComponent的updateQueue表示了该节点所要进行的更新，
+   * 比如他可能长这样
+   * ['children', 'new text', 'style', {background: 'red'}]
+   * 代表了他对应的dom需要更新textContent和style属性
+   */
+  updateQueue: unknown  // 存储effect的链表
 
-**concurrent**模式(异步)
+  /**
+   * 表示了该节点的类型，比如HostComponent,FunctionComponent,HostRoot
+   * 详细信息可以查看react-reconciler\ReactWorkTags.ts
+   */
+  tag: WorkTag
 
-createRoot调用createRootImpl创建fiberRootNode和rootNode，在createRootImpl中调用listenToAllSupportedEvents初始化事件注册
+  /**
+   * 该fiber节点父节点（以HostRoot为tag的fiber节点return属性为null）
+   */
+  return: Fiber | null
 
-创建完Fiber节点后，调用ReactDOMRoot.prototype.render执行updateContainer，然后scheduleUpdateOnFiber异步调度performConcurrentWorkOnRoot进入render阶段和commit阶段
+  /**
+   * 该节点链接了workInPrgress树和current fiber树之间的节点
+   */
+  alternate: Fiber | null 
 
-不同点
+  /**
+   * 用于多节点children进行diff时提高节点复用的正确率
+   */
+  key: string | null
 
-在函数scheduleUpdateOnFiber中根据不同优先级进入不同分支，legacy模式进入performSyncWorkOnRoot，concurrent模式会异步调度performConcurrentWorkOnRoot
+  /**
+   * 如果是自定义组件则该属性就是和该fiber节点关联的function或class
+   * 如果是div,span则就是一个字符串
+   */
+  type: any
 
+  /**
+   * 表示了元素的类型，fiber的type属性会在reconcile的过程中改变，但是
+   * elementType是一直不变的，比如Memo组件的type在jsx对象中为
+   * {
+   *  $$typeof: REACT_MEMO_TYPE,
+   *  type,
+   *  compare: compare === undefined ? null : compare,
+   * }
+   * 在经过render阶段后会变为他包裹的函数，所以在render前后是不一致的
+   * 而我们在diff是需要判断一个元素的type有没有改变，
+   * 以判断能不能复用该节点，这时候elementType就派上用场
+   * 了，因为他是一直不变的
+   */
+  elementType: any
+
+  /**
+   * 描述fiber节点及其子树属性BitSet
+   * 当一个fiber被创建时他的该属性和父节点一致
+   * 当以ReactDom.render创建应用时mode为LegacyMode，
+   * 当以createRoot创建时mode为ConcurrentMode
+   */
+  mode: TypeOfMode
+
+  /**
+   * 用来判断该Fiber节点是否存在更新，以及改更新的优先级
+   */
+  lanes: Lanes
+  /**
+   * 用来判断该节点的子节点是否存在更新
+   */
+  childLanes: Lanes
+};
+```
 <br/>
 
 ### Fiber双缓存树
@@ -353,136 +464,6 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 <br/>
 
-### Fiber数据结构
-
-Fiber有FiberRoot和普通Fiber节点，这里展示的普通Fiber节点
-
-```javaScript
-type Fiber = {
-   /**
-   * 该fiber节点处于同级兄弟节点的第几位
-   */
-  index: number
-  /**
-   * 此次commit中需要删除的fiber节点
-   */
-  deletions: Fiber[] | null
-  /**
-   * 子树带有的更新操作，用于减少查找fiber树上更新的时间复杂度
-   */
-  subtreeFlags: Flags
-  /**
-   *一个Bitset代表该fiber节点上带有的更新操作,比如第二位为1就代表该节点需要插入
-   */
-  flags: Flags
-  /**
-   * 新创建jsx对象的第二个参数,像HostRoot这种内部自己创建的Fiber节点为null
-   */
-  pendingProps: any
-  /**
-   * 上一轮更新完成后的props
-   */
-  memoizedProps: any
-  /**
-   *其子节点为单链表结构child指向了他的第一个子节点后续子节点可通过child.sibling获得
-   */
-  child: Fiber | null
-
-  /**
-   * 该fiber节点的兄弟节点，他们都有着同一个父fiber节点
-   */
-  sibling: Fiber | null
-  /**
-   * 在我们的实现中只有Function组件对应的fiber节点使用到了该属性
-   * function组件会用他来存储hook组成的链表,在react中很多数据结构
-   * 都有该属性，注意不要弄混了
-   */
-  memoizedState: any
-  /**
-   * 该fiber节点对于的相关节点(类组件为为类实例，dom组件为dom节点)
-   */
-  stateNode: any
-
-  /**
-   * 存放了该fiber节点上的更新信息,其中HostRoot,FunctionComponent, HostComponent
-   * 的updateQueue各不相同，函数的组件的updateQueue是一个存储effect的链表
-   * 比如一个函数组件内有若干个useEffect，和useLayoutEffect，那每个effect
-   * 就会对应这样的一个数据结构
-   * {
-   *  tag: HookFlags //如果是useEffect就是Passive如果是useLayoutEffect就是Layout
-   *  create: () => (() => void) | void //useEffect的第一个参数
-   *  destroy: (() => void) | void //useEffect的返回值
-   *  deps: unknown[] | null //useEffect的第二个参数
-   *  next: Effect
-   * }
-   * 各个effect会通过next连接起来
-   * HostComponent的updateQueue表示了该节点所要进行的更新，
-   * 比如他可能长这样
-   * ['children', 'new text', 'style', {background: 'red'}]
-   * 代表了他对应的dom需要更新textContent和style属性
-   */
-  updateQueue: unknown  // 存储effect的链表
-
-  /**
-   * 表示了该节点的类型，比如HostComponent,FunctionComponent,HostRoot
-   * 详细信息可以查看react-reconciler\ReactWorkTags.ts
-   */
-  tag: WorkTag
-
-  /**
-   * 该fiber节点父节点（以HostRoot为tag的fiber节点return属性为null）
-   */
-  return: Fiber | null
-
-  /**
-   * 该节点链接了workInPrgress树和current fiber树之间的节点
-   */
-  alternate: Fiber | null 
-
-  /**
-   * 用于多节点children进行diff时提高节点复用的正确率
-   */
-  key: string | null
-
-  /**
-   * 如果是自定义组件则该属性就是和该fiber节点关联的function或class
-   * 如果是div,span则就是一个字符串
-   */
-  type: any
-
-  /**
-   * 表示了元素的类型，fiber的type属性会在reconcile的过程中改变，但是
-   * elementType是一直不变的，比如Memo组件的type在jsx对象中为
-   * {
-   *  $$typeof: REACT_MEMO_TYPE,
-   *  type,
-   *  compare: compare === undefined ? null : compare,
-   * }
-   * 在经过render阶段后会变为他包裹的函数，所以在render前后是不一致的
-   * 而我们在diff是需要判断一个元素的type有没有改变，
-   * 以判断能不能复用该节点，这时候elementType就派上用场
-   * 了，因为他是一直不变的
-   */
-  elementType: any
-
-  /**
-   * 描述fiber节点及其子树属性BitSet
-   * 当一个fiber被创建时他的该属性和父节点一致
-   * 当以ReactDom.render创建应用时mode为LegacyMode，
-   * 当以createRoot创建时mode为ConcurrentMode
-   */
-  mode: TypeOfMode
-
-  /**
-   * 用来判断该Fiber节点是否存在更新，以及改更新的优先级
-   */
-  lanes: Lanes
-  /**
-   * 用来判断该节点的子节点是否存在更新
-   */
-  childLanes: Lanes
-};
-```
 ### useState
 
 useState在mount和update中，分别对应**HooksDispatcherOnMount**中的mountState和**HooksDispatcherOnUpdate**中的updateState
@@ -571,49 +552,36 @@ hook与FunctionComponent fiber都存在memoizedState属性，不要混淆他们�
 ```
 <br/>
 
-### setState 是同步还是异步？
-
-- 新版本 React18 是异步模式，React17版本是也是异步，但是在setTimeout中是同步
-
-* React17 使用React.render (legacy同步模式),使用unstable_batchedUpdates可以解决在promise和setTimeout中不受React控制的问题,React18 使用 React.createRoot(concurrent异步模式)
-
-- React 在执行 setState 的时候会把更新的内容放入队列
-
-- 在事件执行结束后会计算 state 的数据，然后执行回调
-
-- 最后根据最新的 state 计算虚拟 DOM 更新真实 DOM
-
-* 优点
-
-  1.为保持内部一致性，如果改为同步更新的方式，尽管 setState 变成了同步，但是 props 不是
-
-  2.为后续的架构升级启用并发更新，React 会在 setState 时，根据它们的数据来源分配不用的优先级，这些数据来源有：事件回调句柄，动画效果等，再根据优先级并发处理，提升渲染性能
-
-  3.setState 设计为异步，可以显著提升性能(非合成事件和钩子函数当中是同步的，例如 Promise 中就是同步)，使用 batchedUpdates 可以已经批量更新
-
-```javaScript
-     this.setState({ count: this.state.count + 1 });
-     console.log(this.state.count); // 批量更新所以是 0
-     this.setState({ count: this.state.count + 1 });
-     console.log(this.state.count); // 批量更新所以是 0
-     setTimeout(() => {
-        this.setState({ count: this.state.count + 1 });
-        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步2
-        this.setState({ count: this.state.count + 1 });
-        console.log(this.state.count); // React18不用unstable_batchedUpdates也会异步批量所以是 1,react17版本会是同步3
-     });
-```
-<br/>
-
 ## 事件代理
 
-+ 捕获事件是先注册先执行，冒泡事件是先注册后执行
+一般的事件触发都会经历三个阶段：
 
-- React17之前事件会冒泡到 document 上执行，所以导致和浏览器表现不一致(17 之后没问题了，因为挂到 root节点 上了)
+捕获阶段，事件从 window 开始，自上而下一直传播到目标元素的阶段。
 
-+ 新版本在createRoot时，会调用createImpl，在root节点listenToAllSupportedEvents直接初始化事件系统
+目标阶段，事件真正的触发元素处理事件的阶段。
 
-+ 事件的原则不管是捕获阶段还是冒泡阶段，都是先注册，先执行
+冒泡阶段，从目标元素开始，自下而上一直传播到 window 的阶段。
+
+
+React事件代理
+
+将事件都代理到了根节点上，减少了事件监听器的创建，节省了内存
+
+磨平浏览器差异，开发者无需兼容多种浏览器写法。如想阻止事件传播时需要编写**event.stopPropagation()** 或 **event.cancelBubble = true**，在 React 中只需编写 **event.stopPropagation()** 即可
+
+对开发者友好。只需在对应的节点上编写如onClick、onClickCapture等代码即可完成click事件在该节点上冒泡节点、捕获阶段的监听，统一了写法
+
+React事件收集
+
+由于 React 需要对所有的事件做代理委托，所以需要事先知道浏览器支持的所有事件，这些事件都是硬编码在 React 源码的各个事件插件中的。
+
+而对于所有需要代理的原生事件，都会以原生事件名字符串的形式存储在一个名为allNativeEvents的集合中，并且在registrationNameDependencies中存储 React 事件名到其依赖的原生事件名数组的映射。
+
+而事件的收集是通过各个事件处理插件各自收集注册的，在页面加载时，会执行各个插件的registerEvents，将所有依赖的原生事件都注册到allNativeEvents中去，并且在registrationNameDependencies中存储映射关系。
+
+对于原生事件不支持冒泡阶段的事件，硬编码的形式存储在了nonDelegatedEvents集合中，原生不支持冒泡阶段的事件在后续的事件代理环节有不一样的处理方式
+
+React在创建了FiberRoot之后，调用**listenToAllSupportedEvents**进行事件绑定
 
 ```javaScript
   // result:事件是先注册先执行
@@ -630,7 +598,7 @@ hook与FunctionComponent fiber都存在memoizedState属性，不要混淆他们�
   // element.addEventListener(event, function, useCapture) useCapture === true ? '捕获' : '冒泡'，默认冒泡
   // e.preventDefault() 阻止事件默认行为
   // onClickCapture 捕获 onClick 冒泡
-  // React16由于会冒泡到docuemnt上执行，所以会导致最后show为false
+  // React16由于会冒泡到docuemnt上执行，所以会导致最后show为false,React17会代理到根节点
     componentDidMount(){
       this.setState({
         show:false

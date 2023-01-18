@@ -1598,6 +1598,34 @@
 
 	/*
 	 * @Author: changcheng
+	 * @LastEditTime: 2022-10-17 14:16:29
+	 */
+
+	/**
+	 * 取得此时因该使用的Dispatcher,比如首次mount时的dispatcher就为
+	 * 就为HooksDispatcherOnMount
+	 * 组件更新时就为HooksDispatcherOnUpdate，
+	 * 具体逻辑可以查看react-reconciler/ReactFiberHooks下的renderWithHooks函数
+	 * @returns 
+	 */
+	var resolveDispatcher = function resolveDispatcher() {
+	  var dispatcher = ReactCurrentDispatcher.current;
+	  return dispatcher;
+	};
+	/**
+	 * 更具当前的dispatcher调用对应的useState
+	 * @param initialState 初始状态
+	 * @returns 
+	 */
+
+
+	var useState = function useState(initialState) {
+	  var dispatcher = resolveDispatcher();
+	  return dispatcher.useState(initialState);
+	};
+
+	/*
+	 * @Author: changcheng
 	 * @LastEditTime: 2022-08-08 16:41:27
 	 */
 	var React = {
@@ -9696,13 +9724,261 @@
 	  return legacyRenderSubtreeIntoContainer(null, element, container);
 	};
 
+	var isArray$5 = isArray$2;
+
+	var isArray$6 = isArray$5;
+
+	var isArray$7 = isArray$6;
+
+	var isArray$8 = isArray$7;
+
+	var arrayWithHoles = createCommonjsModule(function (module) {
+	function _arrayWithHoles(arr) {
+	  if (isArray$8(arr)) return arr;
+	}
+
+	module.exports = _arrayWithHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	unwrapExports(arrayWithHoles);
+
+	var getIteratorMethod_1 = getIteratorMethod;
+
+	var getIteratorMethod$1 = getIteratorMethod_1;
+
+	var getIteratorMethod$2 = getIteratorMethod$1;
+
+	var getIteratorMethod$3 = getIteratorMethod$2;
+
+	var getIteratorMethod$4 = getIteratorMethod$3;
+
+	var getIteratorMethod$5 = getIteratorMethod$4;
+
+	var iterableToArrayLimit = createCommonjsModule(function (module) {
+	function _iterableToArrayLimit(arr, i) {
+	  var _i = arr == null ? null : typeof symbol$5 !== "undefined" && getIteratorMethod$5(arr) || arr["@@iterator"];
+
+	  if (_i == null) return;
+	  var _arr = [];
+	  var _n = true;
+	  var _d = false;
+
+	  var _s, _e;
+
+	  try {
+	    for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
+	      _arr.push(_s.value);
+
+	      if (i && _arr.length === i) break;
+	    }
+	  } catch (err) {
+	    _d = true;
+	    _e = err;
+	  } finally {
+	    try {
+	      if (!_n && _i["return"] != null) _i["return"]();
+	    } finally {
+	      if (_d) throw _e;
+	    }
+	  }
+
+	  return _arr;
+	}
+
+	module.exports = _iterableToArrayLimit, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	unwrapExports(iterableToArrayLimit);
+
+	var slice$4 = slice$2;
+
+	var slice$5 = slice$4;
+
+	var slice$6 = slice$5;
+
+	var slice$7 = slice$6;
+
+	// call something on iterator step with safe closing on error
+	var callWithSafeIterationClosing = function (iterator, fn, value, ENTRIES) {
+	  try {
+	    return ENTRIES ? fn(anObject(value)[0], value[1]) : fn(value);
+	  } catch (error) {
+	    iteratorClose(iterator, 'throw', error);
+	  }
+	};
+
+	var $Array$3 = Array;
+
+	// `Array.from` method implementation
+	// https://tc39.es/ecma262/#sec-array.from
+	var arrayFrom = function from(arrayLike /* , mapfn = undefined, thisArg = undefined */) {
+	  var O = toObject(arrayLike);
+	  var IS_CONSTRUCTOR = isConstructor(this);
+	  var argumentsLength = arguments.length;
+	  var mapfn = argumentsLength > 1 ? arguments[1] : undefined;
+	  var mapping = mapfn !== undefined;
+	  if (mapping) mapfn = functionBindContext(mapfn, argumentsLength > 2 ? arguments[2] : undefined);
+	  var iteratorMethod = getIteratorMethod(O);
+	  var index = 0;
+	  var length, result, step, iterator, next, value;
+	  // if the target is not iterable or it's an array with the default iterator - use a simple case
+	  if (iteratorMethod && !(this === $Array$3 && isArrayIteratorMethod(iteratorMethod))) {
+	    iterator = getIterator(O, iteratorMethod);
+	    next = iterator.next;
+	    result = IS_CONSTRUCTOR ? new this() : [];
+	    for (;!(step = functionCall(next, iterator)).done; index++) {
+	      value = mapping ? callWithSafeIterationClosing(iterator, mapfn, [step.value, index], true) : step.value;
+	      createProperty(result, index, value);
+	    }
+	  } else {
+	    length = lengthOfArrayLike(O);
+	    result = IS_CONSTRUCTOR ? new this(length) : $Array$3(length);
+	    for (;length > index; index++) {
+	      value = mapping ? mapfn(O[index], index) : O[index];
+	      createProperty(result, index, value);
+	    }
+	  }
+	  result.length = index;
+	  return result;
+	};
+
+	var ITERATOR$4 = wellKnownSymbol('iterator');
+	var SAFE_CLOSING = false;
+
+	try {
+	  var called = 0;
+	  var iteratorWithReturn = {
+	    next: function () {
+	      return { done: !!called++ };
+	    },
+	    'return': function () {
+	      SAFE_CLOSING = true;
+	    }
+	  };
+	  iteratorWithReturn[ITERATOR$4] = function () {
+	    return this;
+	  };
+	  // eslint-disable-next-line es-x/no-array-from, no-throw-literal -- required for testing
+	  Array.from(iteratorWithReturn, function () { throw 2; });
+	} catch (error) { /* empty */ }
+
+	var checkCorrectnessOfIteration = function (exec, SKIP_CLOSING) {
+	  if (!SKIP_CLOSING && !SAFE_CLOSING) return false;
+	  var ITERATION_SUPPORT = false;
+	  try {
+	    var object = {};
+	    object[ITERATOR$4] = function () {
+	      return {
+	        next: function () {
+	          return { done: ITERATION_SUPPORT = true };
+	        }
+	      };
+	    };
+	    exec(object);
+	  } catch (error) { /* empty */ }
+	  return ITERATION_SUPPORT;
+	};
+
+	var INCORRECT_ITERATION = !checkCorrectnessOfIteration(function (iterable) {
+	  // eslint-disable-next-line es-x/no-array-from -- required for testing
+	  Array.from(iterable);
+	});
+
+	// `Array.from` method
+	// https://tc39.es/ecma262/#sec-array.from
+	_export({ target: 'Array', stat: true, forced: INCORRECT_ITERATION }, {
+	  from: arrayFrom
+	});
+
+	var from_1 = path.Array.from;
+
+	var from_1$1 = from_1;
+
+	var from_1$2 = from_1$1;
+
+	var from_1$3 = from_1$2;
+
+	var from_1$4 = from_1$3;
+
+	var from_1$5 = from_1$4;
+
+	var arrayLikeToArray = createCommonjsModule(function (module) {
+	function _arrayLikeToArray(arr, len) {
+	  if (len == null || len > arr.length) len = arr.length;
+
+	  for (var i = 0, arr2 = new Array(len); i < len; i++) {
+	    arr2[i] = arr[i];
+	  }
+
+	  return arr2;
+	}
+
+	module.exports = _arrayLikeToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	unwrapExports(arrayLikeToArray);
+
+	var unsupportedIterableToArray = createCommonjsModule(function (module) {
+	function _unsupportedIterableToArray(o, minLen) {
+	  var _context;
+
+	  if (!o) return;
+	  if (typeof o === "string") return arrayLikeToArray(o, minLen);
+
+	  var n = slice$7(_context = Object.prototype.toString.call(o)).call(_context, 8, -1);
+
+	  if (n === "Object" && o.constructor) n = o.constructor.name;
+	  if (n === "Map" || n === "Set") return from_1$5(o);
+	  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return arrayLikeToArray(o, minLen);
+	}
+
+	module.exports = _unsupportedIterableToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	unwrapExports(unsupportedIterableToArray);
+
+	var nonIterableRest = createCommonjsModule(function (module) {
+	function _nonIterableRest() {
+	  throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+	}
+
+	module.exports = _nonIterableRest, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	unwrapExports(nonIterableRest);
+
+	var slicedToArray = createCommonjsModule(function (module) {
+	function _slicedToArray(arr, i) {
+	  return arrayWithHoles(arr) || iterableToArrayLimit(arr, i) || unsupportedIterableToArray(arr, i) || nonIterableRest();
+	}
+
+	module.exports = _slicedToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+	});
+
+	var _slicedToArray = unwrapExports(slicedToArray);
+
+	function MemorizedComponentDemo() {
+	  var _useState = useState('初始状态'),
+	      _useState2 = _slicedToArray(_useState, 2),
+	      number = _useState2[0],
+	      setNumber = _useState2[1];
+
+	  return /*#__PURE__*/React.createElement("p", {
+	    onClick: function onClick() {
+	      setNumber('更新一次');
+	      setNumber('更新二次');
+	      setNumber('更新三次');
+	    }
+	  }, number);
+	}
+
 	/*
 	 * @Author: changcheng
-	 * @LastEditTime: 2023-01-04 22:57:10
+	 * @LastEditTime: 2023-01-07 16:36:44
 	 */
-	// createRoot(document.querySelector("#app")!).render(<MemorizedComponentDemo />);
-	var singleDom = /*#__PURE__*/React.createElement("div", null, "\u6E32\u67D3\u5185\u5BB9");
-	render(singleDom, document.querySelector("#app"));
+	// const singleDom = <div>渲染内容</div>
+
+	render( /*#__PURE__*/React.createElement(MemorizedComponentDemo, null), document.querySelector("#app"));
 
 }());
 //# sourceMappingURL=index.js.map

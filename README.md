@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-16 23:14:07
+ * @LastEditTime: 2023-01-18 17:11:47
 -->
 ### React架构
 
@@ -57,11 +57,11 @@ beginWork的作用就是通过当前的Fiber创建子fiber，建立fiber链，�
 
 核心实现在于遍历副作用链表，实现更新逻辑
 
-**commitBeforeMutationEffects**，class组件会在其中执行getSnapshotBeforeUpdate，因为只实现了functionComponent，所以可以忽略。
+**commitBeforeMutationEffects** dom 变更之前, 主要处理副作用队列中带有Snapshot,Passive标记的fiber节点
 
-**commitMutationEffects**，mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作,在commitMutationEffects执行完毕之后，root.current = finishedWork，此时改变rootFiberNode的指针，指向最新的workInProgress。
+**commitMutationEffects** dom 变更, 界面得到更新. 主要处理副作用队列中带有Placement, Update, Deletion, Hydrating标记的fiber节点
 
-**commitLayoutEffects**，LayoutEffects阶段，在其中执行useLayoutEffect的create函数，这就是他和useEffect最大的区别，useLayoutEffect执行的时间是在dom操作完成后，此时下一帧还没有开始渲染，此时如果做一些动画就非常适合，而如果把执行动画的操作放到useEffect中，因为他是被Scheduler模块调度，被postMessage注册到宏任务里面的，等到他执行时下一帧已经渲染出来，dom操作后的效果已经体现在了页面上了，如果此时动画的起点还是前一帧的话页面就会出现闪烁的情况。
+**commitLayoutEffects** dom 变更后, 主要处理副作用队列中带有Update | Callback标记的fiber节点
 
 <br/>
 
@@ -615,3 +615,73 @@ React在创建了FiberRoot之后，调用**listenToAllSupportedEvents**进行事
     {this.state.show && <a>显示</a>}
 ```
 <br/>
+
+
+### 时间切片
+
+时间分片的异步渲染是优先级调度实现的前提
+
+核心是任务的可中断可恢复，实现核心是MessageChannel，宏任务，为什么不用setTimeout，因为setTimeout间隔4,5ms，而且MessageChannel执行时机比setTimeout更靠前
+
+
+![avatar](./img/scheduleCallback.jpg)
+
+模拟React中的时间切片
+
+```javaScript
+    let result = 0;
+    let i = 0;
+    //截止时间
+    let deadline = 0;
+    //当前正在调度执行的工作
+    let scheduledHostCallback = null;
+    //每帧的时间片5ms
+    let yieldInterval = 5;
+    // 新建MessageChannel
+    const { port1, port2 } = new MessageChannel();
+    // port2调用postMessage这里执行port1的onMessage的回调
+    port1.onmessage = performWorkUntilDeadline;
+    function scheduleCallback(callback) {
+        scheduledHostCallback = callback;
+        port2.postMessage(null);
+    }
+    /*总任务*/
+    function calculate() {
+        for (; i < 10000000 && (!shouldYield()); i++) {//7个0
+            result += 1;
+        }
+        // 任务没有完成，返回任务本身
+        if (result < 10000000) {
+            return calculate;
+        } else {
+          // 任务完成，返回null进行终止操作
+            return null;
+        }
+
+    }
+    scheduleCallback(calculate);
+    /**
+     * 执行工作直到截止时间
+     */
+    function performWorkUntilDeadline() {
+        // 获取当前的执行时间
+        const currentTime = performance.now();
+        // 计算截止时间
+        deadline = currentTime + yieldInterval;
+        // 执行工作
+        const hasMoreWork = scheduledHostCallback();
+        // 如果此工作还没有执行完，则再次调度
+        if (hasMoreWork) {
+        // 触发port1的onMessage
+            port2.postMessage(null);
+        }
+    }
+    /**
+     * 判断是否到达了本帧的截止时间
+     * @returns 是否需要暂停执行
+     */
+    function shouldYield() {
+        const currentTime = performance.now();
+        return currentTime >= deadline;
+    };
+```

@@ -1,10 +1,9 @@
 <!--
  * @Author: changcheng
- * @LastEditTime: 2022-08-03 16:00:42
+ * @LastEditTime: 2023-01-18 23:23:41
 -->
 
 ```javaScript
-// 经典发布订阅结构
 const list = [['国家大事',['小王']],['美女',['小常','小谢']]]
 class EventBus {
   constructor() {

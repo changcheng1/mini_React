@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-01-18 17:11:47
+ * @LastEditTime: 2023-02-01 09:57:48
 -->
 ### React架构
 
@@ -20,11 +20,7 @@ React是用**javaScript**构建快速响应的大型web应用的首选方式，�
 ƒ
 这种将长任务分拆到每一帧中，像蚂蚁搬家一样一次执行一小段任务的操作，被称为时间切片（time slice）
 
-IO的瓶颈如何解决
-
-为此，React实现了**Suspense**功能及配套的hook——useDeferredValue
-
-而在源码内部，为了支持这些特性，同样需要将**同步的更新**变为**可中断的异步更新**
+IO的瓶颈如何解决,需要将**同步的更新**变为**可中断的异步更新**
 
 <br/>
 
@@ -115,11 +111,10 @@ effectList中第一个Fiber节点保存在fiber.firstEffect，最后一个元素
   let fiberA = { key: 'A', flags: Placement };
   let fiberB = { key: 'B', flags: Placement };
   let fiberC = { key: 'C', flags: Placement };
-  //rootFiber->A-BC 
   //B把自己的fiber给A
   collectEffectList(fiberA, fiberB);
   collectEffectList(fiberA, fiberC);
-  collectEffectList(rootFiber, fiberA);
+  collectEffectList(rootFiber, fiberA);  //rootFiber->A-B->C 
   
 ```
 
@@ -301,6 +296,57 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ![avatar](./img/singleDomDiff.jpg)
 
+```javaScript
+
+  function reconcileSingleElement(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    element: ReactElement
+  ): Fiber {
+    const key = element.key;
+    let child = currentFirstChild;
+    // 首先判断是否存在对应DOM节点
+    while (child !== null) {
+      // 上一次更新存在DOM节点，接下来判断是否可复用
+      // 首先比较key是否相同
+      if (child.key === key) {
+        // key相同，接下来比较type是否相同
+        switch (child.tag) {
+          // ...省略case
+          default: {
+            if (child.elementType === element.type) {
+              // type相同则表示可以复用
+              // 删除剩下的兄弟节点
+               deleteRemainingChildren(returnFiber, child.sibling)
+               // 复用fiber，更新props
+               const existing = useFiber(child, element.props)
+               existing.return = returnFiber
+               return existing
+            }
+            //key相同但是type变了，直接停止遍历，把后面的节点都删了
+            deleteRemainingChildren(returnFiber, child)
+            break
+          }
+        }
+        // 代码执行到这里代表：key相同但是type不同
+        // 将该fiber及其兄弟fiber标记为删除
+        deleteRemainingChildren(returnFiber, child);
+        break;
+      } else {
+        // key不同，将该fiber标记为删除
+        deleteChild(returnFiber, child);
+      }
+      child = child.sibling;
+    }
+    //一个都不能复用，直接重新创建一个，根据jsx创建fiber节点
+    const created = createFiberFromElement(element, returnFiber.mode, lanes)
+    // 建立与父级的关系
+    created.return = returnFiber
+    return created
+  }
+  
+```
+
 ### 多节点
 
 **第一轮**
@@ -326,8 +372,6 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 **第三轮**
 
 处理节点移动的情况
-
-<br/>
 
 1.key相同,类型相同,数量相同
 
@@ -461,6 +505,94 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 ```
 
 ![avatar](./img/domDiff_move.jpg)
+
+```javaScript
+      function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
+        //将要返回的第一个新fiber
+        let resultingFirstChild = null;
+        //上一个新fiber
+        let previousNewFiber = null;
+        //当前的老fiber
+        let oldFiber = currentFirstChild;
+        //下一个老fiber
+        let nextOldFiber = null;
+        //新的虚拟DOM的索引
+        let newIdx = 0;
+        //指的上一个可以复用的，不需要移动的节点的老索引
+        let lastPlacedIndex = 0;
+        //处理更新的情况 老fiber和新fiber都存在
+        for (; oldFiber && newIdx < newChildren.length; newIdx++) {
+            //先缓存下一个老fiber
+            nextOldFiber = oldFiber.sibling;
+            //  判断该对应位置的fiber是否可以复用
+            //  只有type相同且key也相同的情况下才会复用
+            //  diff函数会根据该函数的返回值进行相关的操作
+            //  如果key不相同直接返回null代表可能节点的位置发生了变更，
+            //  简单的循环是行不通的所以待会会进入updateFromMap逻辑，
+            //  如果是key相同但是type变了就选择不复用，而是选择重新创建一个元素返回
+            //  就会将以前同key的元素标记为删除
+            const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx]);
+            //如果key 不一样，直接跳出第一轮循环
+            if (!newFiber)
+                break;
+            //老fiber存在，但是新的fiber并没有复用老fiber
+            if (oldFiber && !newFiber.alternate) {
+                deleteChild(returnFiber, oldFiber);
+            }
+            //核心是给当前的newFiber添加一个副作用flags 叫新增
+            lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+            if (!previousNewFiber) {
+                resultingFirstChild = newFiber;
+            } else {
+                previousNewFiber.sibling = newFiber;
+            }
+            previousNewFiber = newFiber;
+            oldFiber = nextOldFiber;
+        }
+
+        if (newIdx === newChildren.length) {//1!=6
+            deleteRemainingChildren(returnFiber, oldFiber);
+            return resultingFirstChild;
+        }
+        //如果没有老fiber了
+        if (!oldFiber) { //oldFIber现在指向B，有的，进不出
+            //循环虚拟DOM数组， 为每个虚拟DOM创建一个新的fiber
+            for (; newIdx < newChildren.length; newIdx++) {
+                const newFiber = createChild(returnFiber, newChildren[newIdx]);//li(C)
+                lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+                if (!previousNewFiber) {
+                    resultingFirstChild = newFiber;//resultingFirstChild=>li(A)
+                } else {
+                    previousNewFiber.sibling = newFiber;//liB.sibling=li(C)
+                }
+                previousNewFiber = newFiber;//previousNewFiber=>li(C)
+            }
+            return resultingFirstChild;
+        }
+        //将剩下的老fiber放入map中
+        const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
+        for (; newIdx < newChildren.length; newIdx++) {
+            //去map中找找有没key相同并且类型相同可以复用的老fiber 老真实DOM
+            const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx]);
+            if (newFiber) {
+                //说明是复用的老fiber
+                if (newFiber.alternate) {
+                    existingChildren.delete(newFiber.key || newIdx);
+                }
+                lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+                if (!previousNewFiber) {
+                    resultingFirstChild = newFiber;//resultingFirstChild=>li(A)
+                } else {
+                    previousNewFiber.sibling = newFiber;//liB.sibling=li(C)
+                }
+                previousNewFiber = newFiber;//previousNewFiber=>li(C)
+            }
+        }
+        //map中剩下是没有被 复用的，全部删除
+        existingChildren.forEach(child => deleteChild(returnFiber, child));
+        return resultingFirstChild;
+    }
+```
 
 <br/>
 
@@ -619,14 +751,30 @@ React在创建了FiberRoot之后，调用**listenToAllSupportedEvents**进行事
 
 ### 时间切片
 
-时间分片的异步渲染是优先级调度实现的前提
+时间分片的异步渲染是优先级调度实现的前提，本质是模拟requestIdleCallback
 
-核心是任务的可中断可恢复，实现核心是MessageChannel，宏任务，为什么不用setTimeout，因为setTimeout间隔4,5ms，而且MessageChannel执行时机比setTimeout更靠前
+```javaScript
+  一个task(宏任务) -- 队列中全部job(微任务) -- requestAnimationFrame -- 浏览器重排/重绘 -- requestIdleCallback
+```
+
+requestIdleCallback是在“浏览器重排/重绘”后如果当前帧还有空余时间时被调用的。
+
+浏览器并没有提供其他API能够在同样的时机（浏览器重排/重绘后）调用以模拟其实现。
+
+唯一能精准控制调用时机的API是requestAnimationFrame，他能让我们在“浏览器重排/重绘”之前执行JS。
+
+这也是为什么我们通常用这个API实现JS动画 —— 这是浏览器渲染前的最后时机，所以动画能快速被渲染。
+
+所以，退而求其次，Scheduler的时间切片功能是通过task（宏任务）实现的。
+
+最常见的task当属setTimeout了。但是有个task比setTimeout执行时机更靠前，那就是MessageChannel (opens new window)。
+
+所以Scheduler将需要被执行的回调函数作为MessageChannel的回调执行。如果当前宿主环境不支持MessageChannel，则使用setTimeout
 
 
 ![avatar](./img/scheduleCallback.jpg)
 
-模拟React中的时间切片
+模拟React中的时间切片，单个任务，React当中是多任务，用的数组模拟的最小堆(taskQueue)
 
 ```javaScript
     let result = 0;
@@ -664,7 +812,7 @@ React在创建了FiberRoot之后，调用**listenToAllSupportedEvents**进行事
      * 执行工作直到截止时间
      */
     function performWorkUntilDeadline() {
-        // 获取当前的执行时间
+        // 获取当前的执行时间，相比Date.now更加精准
         const currentTime = performance.now();
         // 计算截止时间
         deadline = currentTime + yieldInterval;
@@ -684,4 +832,40 @@ React在创建了FiberRoot之后，调用**listenToAllSupportedEvents**进行事
         const currentTime = performance.now();
         return currentTime >= deadline;
     };
+```
+
+任务队列，多个任务的情况
+
+![avatar](./img/taskQueue.jpeg)
+
+
+### 优先级
+
+```javaScript 
+
+  // 优先级
+  export const NoPriority = 0;           // 没有任何优先级
+  export const ImmediatePriority = 1;    // 立即执行的优先级，级别最高
+  export const UserBlockingPriority = 2; // 用户阻塞级别的优先级
+  export const NormalPriority = 3;       // 正常的优先级
+  export const LowPriority = 4;          // 较低的优先级
+  export const IdlePriority = 5;         // 优先级最低，表示任务可以闲置
+
+  // 不同的优先级对应不同的过期时间
+  let maxSigned31BitInt = 1073741823;
+  let IMMEDIATE_PRIORITY_TIMEOUT = -1; //立即执行的优先级，级别最高
+  let USER_BLOCKING_PRIORITY_TIMEOUT = 250; //用户阻塞级别的优先级
+  let NORMAL_PRIORITY_TIMEOUT = 5000; //正常的优先级
+  let LOW_PRIORITY_TIMEOUT = 10000; //较低的优先级
+  let IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt; //优先级最低，表示任务可以闲置
+```
+
+优先级的核心是使用数组模拟最小优先队列，核心文件是 SchedulerMinHeap.ts
+
+```javaScript
+
+    function push(){}  // 添加一个元素并调整最小堆
+    function peek(){} // 查看一下堆顶的元素
+    function pop(){}  // 取出并删除堆顶的元素，并调整最小堆
+
 ```

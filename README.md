@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-02-01 14:43:01
+ * @LastEditTime: 2023-02-01 14:49:01
 -->
 ### React架构
 
@@ -555,7 +555,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
             deleteRemainingChildren(returnFiber, oldFiber);
             return resultingFirstChild;
         }
-        //如果老Fiber是遍历完的，但是新的Fiber还没遍历完
+        //如果老Fiber是遍历完的，但是新的Fiber还没遍历完，第一次挂载其实也是在这里的逻辑，因为没有oldFiber
         if (oldFiber === null) {
             //循环虚拟DOM数组， 为每个虚拟DOM创建一个新的fiber
             for (; newIdx < newChildren.length; newIdx++) {

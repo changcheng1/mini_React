@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-02-01 09:57:48
+ * @LastEditTime: 2023-02-01 14:43:01
 -->
 ### React架构
 
@@ -507,8 +507,9 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 ![avatar](./img/domDiff_move.jpg)
 
 ```javaScript
+
       function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
-        //将要返回的第一个新fiber
+        //将要返回的第一个新fiber，也就是workInProgress
         let resultingFirstChild = null;
         //上一个新fiber
         let previousNewFiber = null;
@@ -518,7 +519,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
         let nextOldFiber = null;
         //新的虚拟DOM的索引
         let newIdx = 0;
-        //指的上一个可以复用的，不需要移动的节点的老索引
+        // 新的Fiber节点在老的Fiber节点中的索引位置，用来处理Fiber节点位置的变化，也就是oldFiber index
         let lastPlacedIndex = 0;
         //处理更新的情况 老fiber和新fiber都存在
         for (; oldFiber && newIdx < newChildren.length; newIdx++) {
@@ -535,13 +536,13 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
             //如果key 不一样，直接跳出第一轮循环
             if (!newFiber)
                 break;
-            //老fiber存在，但是新的fiber并没有复用老fiber
+            //老fiber存在，但是新节点没有alternate，说明是新创建的节点，将老Fiber标记为删除，继续遍历
             if (oldFiber && !newFiber.alternate) {
                 deleteChild(returnFiber, oldFiber);
             }
-            //核心是给当前的newFiber添加一个副作用flags 叫新增
+            //核心是给当前的newFiber添加一个副作用flags 叫新增，并且记录新的节点在老的Fiber节点中的位置
             lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
-            if (!previousNewFiber) {
+            if (previousNewFiber === null) {
                 resultingFirstChild = newFiber;
             } else {
                 previousNewFiber.sibling = newFiber;
@@ -549,49 +550,61 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
             previousNewFiber = newFiber;
             oldFiber = nextOldFiber;
         }
-
-        if (newIdx === newChildren.length) {//1!=6
+        // 老Fiber和新Fiber同时遍历完成，删除剩下的oldFiber就行
+        if (newIdx === newChildren.length) {
             deleteRemainingChildren(returnFiber, oldFiber);
             return resultingFirstChild;
         }
-        //如果没有老fiber了
-        if (!oldFiber) { //oldFIber现在指向B，有的，进不出
+        //如果老Fiber是遍历完的，但是新的Fiber还没遍历完
+        if (oldFiber === null) {
             //循环虚拟DOM数组， 为每个虚拟DOM创建一个新的fiber
             for (; newIdx < newChildren.length; newIdx++) {
-                const newFiber = createChild(returnFiber, newChildren[newIdx]);//li(C)
+                const newFiber = createChild(returnFiber, newChildren[newIdx]);
                 lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
                 if (!previousNewFiber) {
-                    resultingFirstChild = newFiber;//resultingFirstChild=>li(A)
+                    resultingFirstChild = newFiber;
                 } else {
-                    previousNewFiber.sibling = newFiber;//liB.sibling=li(C)
+                    previousNewFiber.sibling = newFiber;
                 }
-                previousNewFiber = newFiber;//previousNewFiber=>li(C)
+                previousNewFiber = newFiber;
             }
             return resultingFirstChild;
         }
-        //将剩下的老fiber放入map中
+        //将剩下的老fiber放入map中 {key:key,value:Fiber}
         const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
         for (; newIdx < newChildren.length; newIdx++) {
             //去map中找找有没key相同并且类型相同可以复用的老fiber 老真实DOM
             const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx]);
-            if (newFiber) {
+            if (newFiber !== null) {
                 //说明是复用的老fiber
                 if (newFiber.alternate) {
                     existingChildren.delete(newFiber.key || newIdx);
                 }
+                  //  如果是首次mount则 lastPlacedIndex没有意义，该值主要用来判断该节点在这次更新后
+                  //  是不是原来在他后面的节点，现在跑到他前面了如果是他就是需要重新插入dom树的
+                  //  那么怎么判断他后面的节点是不是跑到他前面了呢，考虑以下情况
+                  //  更新前: 1 -> 2 -> 3 -> 4
+                  //  更新后: 1 -> 3 -> 2 -> 4
+                  //  在处理该次更新时，当遍历到2时，此时lastPlacedIndex为2，而2的oldIndex为1
+                  //  所以可以判断到newFiber.oldIndex小于lastPlacedIndex，老的Fiber对应的真实dom需要移动了
+                  //  但是现在跑到他前面了，所以newFiber也就是2是需要重新插入dom树的
+                  //  在commit阶段时，对2相应的dom进行重新插入时，
+                  //  会寻找他后面第一个不需要进行插入操作的dom元素作为insertBefore
+                  //  的第二个参数，所以2对应的dom会被插入到4前面
                 lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
-                if (!previousNewFiber) {
-                    resultingFirstChild = newFiber;//resultingFirstChild=>li(A)
+                if (previousNewFiber === null) {
+                    resultingFirstChild = newFiber;
                 } else {
-                    previousNewFiber.sibling = newFiber;//liB.sibling=li(C)
+                    previousNewFiber.sibling = newFiber;
                 }
-                previousNewFiber = newFiber;//previousNewFiber=>li(C)
+                previousNewFiber = newFiber;
             }
         }
         //map中剩下是没有被 复用的，全部删除
         existingChildren.forEach(child => deleteChild(returnFiber, child));
         return resultingFirstChild;
     }
+    
 ```
 
 <br/>

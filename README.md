@@ -1,6 +1,6 @@
 <!--
  * @Author: cc
- * @LastEditTime: 2023-02-01 14:49:01
+ * @LastEditTime: 2023-02-06 21:20:23
 -->
 ### React架构
 
@@ -349,159 +349,74 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ### 多节点
 
-**第一轮**
-
-1.如果key不同则直接结束本轮循环
-
-2.newChildren或oldFiber遍历完，结束本轮循环
-
-3.key相同而type不同，标记老的oldFiber为删除，继续循环
-
-4.key相同而type也相同，则可以复用老节oldFiber节点，继续循环
-
-**第二轮**
-
-1.newChildren遍历完而oldFiber还有，遍历剩下所有的oldFiber标记为删除，DIFF结束
-
-2.oldFiber遍历完了，而newChildren还有，将剩下的newChildren标记为插入，DIFF结束
-
-3.newChildren和oldFiber都同时遍历完成，diff结束
-
-4.newChildren和oldFiber都没有完成，则进行节点移动的逻辑
-
-**第三轮**
-
-处理节点移动的情况
-
-1.key相同,类型相同,数量相同
-
-(更新#div#title)=>null
-
 ```javaScript
-  <div key="title" id="title">
-     div
-  </div>
 
-  <div key="title" id="title2">
-    div2
-  </div>
-```
+  // 之前
+  abcd
+  // 之后
+  acdb
+  
+  ===第一轮遍历开始===
+  a（之后）vs a（之前）  
+  key不变，可复用
+  此时 a 对应的oldFiber（之前的a）在之前的数组（abcd）中索引为0
+  所以 lastPlacedIndex = 0;
 
-2.key相同,类型不同，删除老节点，添加新节点
+  继续第一轮遍历...
 
-(删除#div#title)=>(插入#p#title)=>null
+  c（之后）vs b（之前）  
+  key改变，不能复用，跳出第一轮遍历
+  此时 lastPlacedIndex === 0;
+  ===第一轮遍历结束===
 
-```javaScript
-  <div key="title" id="title">
-   div
-  </div>
+  ===第二轮遍历开始===
+  newChildren === cdb，没用完，不需要执行删除旧节点
+  oldFiber === bcd，没用完，不需要执行插入新节点
 
-  <p key="title" id="title">
-   p
-  </p>
-```
-3.类型相同,key不同,删除老节点，添加新节点
+  将剩余oldFiber（bcd）保存为map
 
-(删除#div#title1)=>(插入#div#title2)=>null
+  // 当前oldFiber：bcd
+  // 当前newChildren：cdb
 
-```javaScript
-  <div key="title1" id="title">
-    title
-  </div>
-  <div key="title2" id="title">
-    title
-   </div>
-```
+  继续遍历剩余newChildren
 
-4.原来多个节点，现在只有一个节点,删除多余节点
+  key === c 在 oldFiber中存在
+  const oldIndex = c（之前）.index;
+  此时 oldIndex === 2;  // 之前节点为 abcd，所以c.index === 2
+  比较 oldIndex 与 lastPlacedIndex;
 
-(删除#li#A)=>(删除#li#C)=>(更新#li#B)=>null
+  如果 oldIndex >= lastPlacedIndex 代表该可复用节点不需要移动
+  并将 lastPlacedIndex = oldIndex;
+  如果 oldIndex < lastplacedIndex 该可复用节点之前插入的位置索引小于这次更新需要插入的位置索引，代表该节点需要向右移动
 
-```javaScript
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B">B</li>
-    <li key="C">C</li>
-  </ul>
+  在例子中，oldIndex 2 > lastPlacedIndex 0，
+  则 lastPlacedIndex = 2;
+  c节点位置不变
 
-  <ul key="ul">
-    <li key="B" id="B2">B2</li>
-  </ul>
-```
+  继续遍历剩余newChildren
 
-5.多个节点的数量、类型和key全部相同，只更新属性
+  // 当前oldFiber：bd
+  // 当前newChildren：db
 
-(删除#li#B)=>(插入#p#B)=>(更新#li#C)=>null
+  key === d 在 oldFiber中存在
+  const oldIndex = d（之前）.index;
+  oldIndex 3 > lastPlacedIndex 2 // 之前节点为 abcd，所以d.index === 3
+  则 lastPlacedIndex = 3;
+  d节点位置不变
 
-```javaScript
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B">B</li>
-    <li key="C"id="C">C</li>
-  </ul>
+  继续遍历剩余newChildren
 
-  <ul key="ul">
-    <li key="A">A</li>
-    <p key="B" id="B2">B2</p>
-    <li key="C" id="C2" >C2</li>
-  </ul>
-``` 
-6.多个节点的类型和key全部相同，有新增元素
+  // 当前oldFiber：b
+  // 当前newChildren：b
 
-(更新#li#B)=>(插入#li#D)=>null
+  key === b 在 oldFiber中存在
+  const oldIndex = b（之前）.index;
+  oldIndex 1 < lastPlacedIndex 3 // 之前节点为 abcd，所以b.index === 1
+  则 b节点需要向右移动
+  ===第二轮遍历结束===
 
-```javaScript
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B">B</li>
-    <li key="C">C</li>
-  </ul>
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B2">B2</li>
-    <li key="C">C</li>
-    <li key="D">D</li>
-  </ul>
-```
-7.多个节点的类型和key全部相同，有删除老元素
-
-(删除#li#C)=>(更新#li#B)=>null
-
-```javaScript
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B">B</li>
-    <li key="C">C</li>
-  </ul>
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="B2">B2</li>
-  </ul>
-```
-
-8.多个节点数量不同、key不同(难点，处理移动)
-
-(删除#li#F)=>(移动#li#B)=>(插入#li#G)=>(插入#li#D)=>null
-
-移动的核心在于lastPlaceIndex的值，默认lastPlaceIndex为0，拿新children索引和老children索引进行比较，如果老的fiber索引大于lasterPlaceIndex，则不需要移动，更新lastPlaceIndex的值，否则需要移动，lastPlaceIndex不变，循环结束，将剩下Fiber直接为Deletion
-
-```javaScript
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="B" id="b">B</li>
-    <li key="C">C</li>
-    <li key="D">D</li>
-    <li key="E">E</li>
-    <li key="F">F</li>
-  </ul>
-  <ul key="ul">
-    <li key="A">A</li>
-    <li key="C">C</li>
-    <li key="E">E</li>
-    <li key="B" id="b2">B2</li>
-    <li key="G">G</li>
-    <li key="D">D</li>
-  </ul>
+  最终acd 3个节点都没有移动，b节点被标记为移动
+  
 ```
 
 ![avatar](./img/domDiff_move.jpg)
@@ -540,7 +455,18 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
             if (oldFiber && !newFiber.alternate) {
                 deleteChild(returnFiber, oldFiber);
             }
-            //核心是给当前的newFiber添加一个副作用flags 叫新增，并且记录新的节点在老的Fiber节点中的位置
+              //  如果是首次mount则 lastPlacedIndex没有意义，该值主要用来判断该节点在这次更新后
+              //  是不是原来在他后面的节点，现在跑到他前面了如果是他就是需要重新插入dom树的
+              //  那么怎么判断他后面的节点是不是跑到他前面了呢，考虑以下情况
+              //  更新前: 1 -> 2 -> 3 -> 4
+              //  更新后: 1 -> 3 -> 2 -> 4
+              //  在处理该次更新时，当遍历到2时，此时lastPlacedIndex为2，而2的oldIndex为1
+              //  所以可以判断到newFiber.oldIndex<lastPlacedIndex，老的Fiber对应的真实dom需要移动了
+              //  但是现在跑到他前面了，所以newFiber也就是2是需要重新插入dom树的
+              //  在commit阶段时，对2相应的dom进行重新插入时，
+              //  会寻找他后面第一个不需要进行插入操作的dom元素作为insertBefore
+              //  的第二个参数，所以2对应的dom会被插入到4前面
+
             lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
             if (previousNewFiber === null) {
                 resultingFirstChild = newFiber;
@@ -580,17 +506,6 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
                 if (newFiber.alternate) {
                     existingChildren.delete(newFiber.key || newIdx);
                 }
-                  //  如果是首次mount则 lastPlacedIndex没有意义，该值主要用来判断该节点在这次更新后
-                  //  是不是原来在他后面的节点，现在跑到他前面了如果是他就是需要重新插入dom树的
-                  //  那么怎么判断他后面的节点是不是跑到他前面了呢，考虑以下情况
-                  //  更新前: 1 -> 2 -> 3 -> 4
-                  //  更新后: 1 -> 3 -> 2 -> 4
-                  //  在处理该次更新时，当遍历到2时，此时lastPlacedIndex为2，而2的oldIndex为1
-                  //  所以可以判断到newFiber.oldIndex小于lastPlacedIndex，老的Fiber对应的真实dom需要移动了
-                  //  但是现在跑到他前面了，所以newFiber也就是2是需要重新插入dom树的
-                  //  在commit阶段时，对2相应的dom进行重新插入时，
-                  //  会寻找他后面第一个不需要进行插入操作的dom元素作为insertBefore
-                  //  的第二个参数，所以2对应的dom会被插入到4前面
                 lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
                 if (previousNewFiber === null) {
                     resultingFirstChild = newFiber;
@@ -665,6 +580,7 @@ hook与FunctionComponent fiber都存在memoizedState属性，不要混淆他们�
 它的特点是最后一个节点的指针区域指向头节点，整个链表形成一个环，永远指向最后一个更新
 
 ```javaScript
+
 // pedding.next指向第一个第一个更新，更新顺序是不变的，此为环状列表
   function dispatchAction(queue,action){
     const update = {action,next:null};
@@ -694,6 +610,7 @@ hook与FunctionComponent fiber都存在memoizedState属性，不要混淆他们�
     // 首尾相等终止循环
     }while(update !== first){}
   }
+  
 ```
 <br/>
 
@@ -787,6 +704,108 @@ requestIdleCallback是在“浏览器重排/重绘”后如果当前帧还有空
 
 ![avatar](./img/scheduleCallback.jpg)
 
+### 位运算相关
+
+```javaScript
+ // 一般来说n比特的的信息量可以表示出2的n次方选择
+ // 4个bit 2的3次方选择 从后往前到1，Math.pow(2,0) Math.pow(2,1) Math.pow(2,2) Math.pow(2,3)
+ // 表示范围就是0-7
+ let a = 0b1000; // 2*2*2 == 8 == Math.pow(2,3)
+ let a = 0b10000; // 16
+ let a = 0b100000; // 32
+```
+
+### 原码反码补码
+
+计算器中其实只用了补码
+
+原码：符号: 用0、1表示正负号,放在数值的最高位,0表示正数，1表示负数
+
+3个bit能表示8个数 +0 +1 +2 +3 -0 -1 -2 -3
+
+![avatar](./img/yuanma.gif)
+
+反码：正数不变,负数的除符号位外取反，加法可以实现减法
+
+![avatar](./img/fanma.gif)
+
+补码
+
+补码:正数不变,负数在反码的基础上加1
+
+补码解决了,可以带符号位进行运算,不需要单独标识
+
+补码解决了自然码正负0的表示方法
+
+补码实现了减法变加法
+
+![avatar](./img/buma.png)
+
+### 位运算
+
+|  运算   | 使用  | 说明 |
+|  ----  | ----  | ----    |
+|按位与(&)	|x & y |	每一个比特位都为1时，结果为1，否则为0|
+|按位或()	|x  y |	每一个比特位都为0时，结果为0，否则为1|
+|按位异或(^)|	x ^ y	|每一个比特位相同结果为0，否则为1|
+|按位非(~)	|~ x|	对每一个比特位取反，0变为1，1变为0|
+|左移(<<)	|x << y|	将x的每一个比特位左移y位，右侧补充0|
+|有符号右移(>>)	|x >> y|	将x的每一个比特位向右移y个位，右侧移除位丢弃，左侧填充为最高位|
+|无符号右移(>>>)	|x >>> y|	将x的每一个比特位向右移y个位，右侧移除位丢弃，左侧填充为0|
+
+
+### 完全二叉树
+
+叶子结点只能出现在最下层和次下层,且最下层的叶子结点集中在树的左部
+
+![avatar](./img/completely_twoTree.jpeg)
+
+
+### 最小堆
+
+最小堆是一种经过排序的完全二叉树，在React源码中使用数组进行的模拟。
+
+其中任一非终端节点的数据值均不大于其左子节点和右子节点的值，根结点值是所有堆结点值中最小者
+
+根据子节点下标推算父节点下标：parentIndex = (childIndex - 1) >>> 1 (位运算)
+
+根据父节点下标推算子节点下标：leftIndex = (index +1 )2 - 1,rightIndex = leftIndex + 1
+
+
+
+![avatar](./img/min_heap.jpg)
+
+### 优先级
+
+```javaScript 
+
+  // 优先级
+  export const NoPriority = 0;           // 没有任何优先级
+  export const ImmediatePriority = 1;    // 立即执行的优先级，级别最高
+  export const UserBlockingPriority = 2; // 用户阻塞级别的优先级
+  export const NormalPriority = 3;       // 正常的优先级
+  export const LowPriority = 4;          // 较低的优先级
+  export const IdlePriority = 5;         // 优先级最低，表示任务可以闲置
+
+  // 不同的优先级对应不同的过期时间
+  let maxSigned31BitInt = 1073741823;
+  let IMMEDIATE_PRIORITY_TIMEOUT = -1; //立即执行的优先级，级别最高
+  let USER_BLOCKING_PRIORITY_TIMEOUT = 250; //用户阻塞级别的优先级
+  let NORMAL_PRIORITY_TIMEOUT = 5000; //正常的优先级
+  let LOW_PRIORITY_TIMEOUT = 10000; //较低的优先级
+  let IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt; //优先级最低，表示任务可以闲置
+```
+
+优先级的核心是使用数组模拟最小优先队列，核心文件是 SchedulerMinHeap.ts
+
+```javaScript
+
+    function push(){}  // 添加一个元素并调整最小堆
+    function peek(){} // 查看一下堆顶的元素
+    function pop(){}  // 取出并删除堆顶的元素，并调整最小堆
+
+```
+
 模拟React中的时间切片，单个任务，React当中是多任务，用的数组模拟的最小堆(taskQueue)
 
 ```javaScript
@@ -852,33 +871,15 @@ requestIdleCallback是在“浏览器重排/重绘”后如果当前帧还有空
 ![avatar](./img/taskQueue.jpeg)
 
 
-### 优先级
+### SchedulerMinHeap.js 
 
-```javaScript 
+peek() 查看堆的顶点
 
-  // 优先级
-  export const NoPriority = 0;           // 没有任何优先级
-  export const ImmediatePriority = 1;    // 立即执行的优先级，级别最高
-  export const UserBlockingPriority = 2; // 用户阻塞级别的优先级
-  export const NormalPriority = 3;       // 正常的优先级
-  export const LowPriority = 4;          // 较低的优先级
-  export const IdlePriority = 5;         // 优先级最低，表示任务可以闲置
+pop() 弹出堆的定点后需要调用siftDown函数向下调整堆
 
-  // 不同的优先级对应不同的过期时间
-  let maxSigned31BitInt = 1073741823;
-  let IMMEDIATE_PRIORITY_TIMEOUT = -1; //立即执行的优先级，级别最高
-  let USER_BLOCKING_PRIORITY_TIMEOUT = 250; //用户阻塞级别的优先级
-  let NORMAL_PRIORITY_TIMEOUT = 5000; //正常的优先级
-  let LOW_PRIORITY_TIMEOUT = 10000; //较低的优先级
-  let IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt; //优先级最低，表示任务可以闲置
-```
+push() 添加新节点后需要调用siftUp函数向上调整堆
 
-优先级的核心是使用数组模拟最小优先队列，核心文件是 SchedulerMinHeap.ts
+siftDown() 向下调整堆结构, 保证最小堆
 
-```javaScript
+siftUp() 需要向上调整堆结构, 保证最小堆
 
-    function push(){}  // 添加一个元素并调整最小堆
-    function peek(){} // 查看一下堆顶的元素
-    function pop(){}  // 取出并删除堆顶的元素，并调整最小堆
-
-```

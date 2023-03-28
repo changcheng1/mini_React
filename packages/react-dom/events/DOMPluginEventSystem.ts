@@ -35,7 +35,7 @@ type DispatchEntry = {
 }
 
 export type DispatchQueue = DispatchEntry[]
-
+// 注册所有事件
 SimpleEventPlugin.registerEvents()
 ChangeEventPlugin.registerEvents()
 
@@ -66,7 +66,7 @@ const addTrappedEventListener = (
 
   let isPassiveListener: undefined | boolean = undefined
   let unsubscribeListener
-
+  // 如果是捕获的情况
   if (isCapturePhaseListener) {
     if (isPassiveListener !== undefined) {
       unsubscribeListener = addEventCaptureListenerWithPassiveFlag(
@@ -231,19 +231,20 @@ export const accumulateSinglePhaseListeners = (
   inCapturePhase: boolean,
   accumulateTargetOnly: boolean
 ) => {
-  const captureName = reactName !== null ? reactName + 'Capture' : null
-  const reactEventName = inCapturePhase ? captureName : reactName
+  const captureName = reactName !== null ? reactName + 'Capture' : null // onClickCapture
+  const reactEventName = inCapturePhase ? captureName : reactName  // onClick
   let listeners: DispatchListener[] = []
 
   let instance = targetFiber
   let lastHostComponent = null
-
+  // while循环直接找到root一级，事件代理
   while (instance !== null) {
     const { tag, stateNode } = instance
 
     if (tag === HostComponent && stateNode !== null) {
       lastHostComponent = stateNode
       if (reactEventName !== null) {
+        // 获取DOM上的监听事件
         const listener = getListener(instance, reactEventName)
 
         if (listener !== null) {
@@ -275,6 +276,8 @@ const processDispatchQueueItemsInOrder = (
   dispatchListeners: DispatchListener[],
   inCapturePhase: boolean
 ): void => {
+  // 根据捕获or冒泡进行执行
+  // 捕获就是倒序
   if (inCapturePhase) {
     for (let i = dispatchListeners.length - 1; i >= 0; --i) {
       const { instance, currentTarget, listener } = dispatchListeners[i]
@@ -282,6 +285,7 @@ const processDispatchQueueItemsInOrder = (
       executeDispatch(event, listener, currentTarget)
     }
   } else {
+    // 冒泡就是正序
     for (let i = 0; i < dispatchListeners.length; ++i) {
       const { instance, currentTarget, listener } = dispatchListeners[i]
       //todo isPropagationStopped
@@ -294,10 +298,12 @@ export const processDispatchQueue = (
   dispatchQueue: DispatchQueue,
   eventSystemFlags: EventSystemFlags
 ): void => {
+  //捕获or冒泡
   const inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0
+  // 遍历派发队列
   for (let i = 0; i < dispatchQueue.length; ++i) {
     const { event, listeners } = dispatchQueue[i]
-
+    // 根据顺序派发条目，执行事件（冒泡or捕获）
     processDispatchQueueItemsInOrder(event, listeners, inCapturePhase)
   }
 }
@@ -309,10 +315,11 @@ const dispatchEventsForPlugins = (
   targetInst: null | Fiber,
   targetContainer: EventTarget
 ) => {
+  // 找到原生DOM节点
   const nativeEventTarget = getEventTarget(nativeEvent)
-
+  // 保存事件队列
   const dispatchQueue: DispatchQueue = []
-
+  // 提取时间队列
   extractEvents(
     dispatchQueue,
     domEventName,
@@ -322,9 +329,17 @@ const dispatchEventsForPlugins = (
     eventSystemFlags,
     targetContainer
   )
+  // 处理派发事件队列
   processDispatchQueue(dispatchQueue, eventSystemFlags)
 }
-
+/**
+ * 插件系统派发事件函数
+ * @param domEventName 
+ * @param eventSystemFlags 0|4 冒泡|捕获
+ * @param nativeEvent 原生事件
+ * @param targetInst 
+ * @param targetContainer 
+ */
 export const dispatchEventForPluginEventSystem = (
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,

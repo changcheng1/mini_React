@@ -1,3 +1,7 @@
+/*
+ * @Author: changcheng
+ * @LastEditTime: 2023-03-27 21:12:32
+ */
 import { Fiber } from '../../react-reconciler/ReactInternalTypes'
 import { Props } from '../ReactDOMHostConfig'
 import { getFiberCurrentPropsFromNode } from './ReactDOMComponentTree'
@@ -18,16 +22,6 @@ const shouldPreventMouseEvent = (
 ): boolean => {
   switch (name) {
     case 'onClick':
-    case 'onClickCapture':
-    case 'onDoubleClick':
-    case 'onDoubleClickCapture':
-    case 'onMouseDown':
-    case 'onMouseDownCapture':
-    case 'onMouseMove':
-    case 'onMouseMoveCapture':
-    case 'onMouseUp':
-    case 'onMouseUpCapture':
-    case 'onMouseEnter':
       return !!(props.disabled && isInteractive(type))
     default:
       return false

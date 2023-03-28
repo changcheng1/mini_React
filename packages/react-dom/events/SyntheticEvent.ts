@@ -1,3 +1,8 @@
+/*
+ * @Author: changcheng
+ * @LastEditTime: 2023-03-27 17:19:11
+ */
+// @ts-nocheck
 import { Fiber } from "../../react-reconciler/ReactInternalTypes";
 function functionThatReturnsTrue() {
   return true;
@@ -12,7 +17,8 @@ export const createSyntheticEvent = (Interface: any) => {
     type: string;
     nativeEvent: { [key: string]: unknown };
     target: null | EventTarget;
-
+    isDefaultPrevented: () => boolean;
+    isPropagationStopped: () => boolean;
     constructor(
       reactName: string | null,
       reactEventType: string,
@@ -29,15 +35,54 @@ export const createSyntheticEvent = (Interface: any) => {
       //   for(const propName in Interface){
       //     this[propName]=nativeEvent[propName];
       //   }
-      //  this.isDefaultPrevented = functionThatReturnsFalse;//是否阻止了默认事件
-      //  this.isPropagationStopped = functionThatReturnsFalse;//是否阻止冒泡了
+    const defaultPrevented =
+    nativeEvent.defaultPrevented != null
+      ? nativeEvent.defaultPrevented
+      : nativeEvent.returnValue === false;
+      //是否阻止了默认事件
+      if (defaultPrevented) {
+        this.isDefaultPrevented = functionThatReturnsTrue;
+      } else {
+        this.isDefaultPrevented = functionThatReturnsFalse;
+      }
+      //是否阻止冒泡了
+      this.isPropagationStopped = functionThatReturnsFalse;
+      return this;
     }
   }
-  // 源码这里做polyfill兼容处理，
-  // Object.assign(SyntheticBaseEvent.prototype, {
-  //   preventDefault() {},
-  //   stopPropagation() {},
-  // });
+  // 源码这里做polyfill兼容处理
+  Object.assign(SyntheticBaseEvent.prototype, {
+   // 兼容阻止默认事件
+    preventDefault() {
+      this.defaultPrevented = true;
+      const event = this.nativeEvent;
+      if (!event) {
+        return;
+      }
+      if (event.preventDefault) {
+        event.preventDefault();
+      } else{
+         // IE
+        event.returnValue = false;
+      }
+      this.isDefaultPrevented = functionThatReturnsTrue;
+    },
+   // 兼容冒泡事件
+    stopPropagation() {
+      const event = this.nativeEvent;
+      if (!event) {
+        return;
+      }
+      if (event.stopPropagation) {
+        event.stopPropagation();
+      } else{
+        // IE
+        event.cancelBubble = true;
+      }
+
+      this.isPropagationStopped = functionThatReturnsTrue;
+    },
+  });
   return SyntheticBaseEvent;
 };
 /**

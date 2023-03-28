@@ -1,3 +1,7 @@
+/*
+ * @Author: changcheng
+ * @LastEditTime: 2023-03-28 18:34:01
+ */
 export const addEventCaptureListenerWithPassiveFlag = (
   target: EventTarget,
   eventType: string,

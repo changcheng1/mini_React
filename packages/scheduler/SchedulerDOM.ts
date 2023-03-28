@@ -279,11 +279,13 @@ const unstable_scheduleCallback = (
     delay: number
   } | null
 ): Task => {
+  // 获取当前的时间
   const currentTime = getCurrentTime()
   let startTime
 
   if (typeof options === 'object' && options !== null) {
     const delay = options.delay
+    // 如果delay是一个数字
     if (typeof delay === 'number' && delay > 0) {
       startTime = currentTime + delay
     } else {

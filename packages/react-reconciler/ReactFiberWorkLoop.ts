@@ -290,7 +290,6 @@ const commitRootImpl = (root: FiberRoot): null => {
   if (rootHasEffect || subtreeHasEffects) {
     //BeforeMutation阶段，Class组件会在其中执行getSnapshotBeforeUpdate
     //我们只实现了Function Commponent,以我们的实现无关,可以忽略
-    console.log(root);
     commitBeforeMutationEffects(root, finishedWork);
     //Mutation阶段，需要进行操作的HostComponent组件，会在这个阶段进行dom操作
     commitMutationEffects(root, finishedWork);

@@ -12,14 +12,7 @@ import { SyntheticEvent } from '../SyntheticEvent'
 
 const registerEvents = () => {
   registerTwoPhaseEvent('onChange', [
-    'change',
     'click',
-    'focusin',
-    'focusout',
-    'input',
-    'keydown',
-    'keyup',
-    'selectionchange',
   ])
 }
 

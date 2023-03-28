@@ -60,9 +60,9 @@ export const createInstance = (
 ) => {
   const domElement: Element = document.createElement(type)
   //todo
-  //updateFiberProps(domElement, props)
-
+  // 设置fiber 和node 的关系
   precacheFiberNode(internalInstanceHandle, domElement)
+  // 将jsx的props挂载到对应的dom节点上，待会该dom触发事件时, ReactDOM就能从event.target中获取到事件的handlers
   updateFiberProps(domElement, props)
 
   return domElement

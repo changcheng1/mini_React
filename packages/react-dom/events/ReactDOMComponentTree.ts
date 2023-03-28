@@ -1,12 +1,12 @@
 /*
  * @Author: changcheng
- * @LastEditTime: 2022-10-25 20:27:08
+ * @LastEditTime: 2023-03-27 21:00:45
  */
 import { Fiber } from '../../react-reconciler/ReactInternalTypes'
 import { Props } from '../ReactDOMHostConfig'
 
 const randomKey = Math.random().toString(36).slice(2)
-
+//
 const internalPropsKey = '__reactProps$' + randomKey
 const internalInstanceKey = '__reactFiber$' + randomKey
 /**

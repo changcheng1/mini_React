@@ -37,8 +37,9 @@ const attemptToDispatchEvent = (
   nativeEvent: AnyNativeEvent
 ): null | Container => {
   const nativeEventTarget = getEventTarget(nativeEvent)
+  // 从Dom找到Fiber实例
   const targetInst = getClosestInstanceFromNode(nativeEventTarget!)
-
+  // 派发事件
   dispatchEventForPluginEventSystem(
     domEventName,
     eventSystemFlags,
@@ -49,13 +50,20 @@ const attemptToDispatchEvent = (
 
   return null
 }
-
+/**
+ * 
+ * @param domEventName 事件名
+ * @param eventSystemFlags 事件系统标识 0|4
+ * @param targetContainer 目标容器
+ * @param nativeEvent 事件真正出发的时候传递过来的原生浏览器事件对象
+ */
 export const dispatchEvent = (
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
   targetContainer: EventTarget,
   nativeEvent: AnyNativeEvent
 ): void => {
+  debugger;
   attemptToDispatchEvent(
     domEventName,
     eventSystemFlags,
@@ -83,7 +91,7 @@ const dispatchContinuousEvent = (
 export const createEventListenerWrapperWithPriority = (
   targetContainer: EventTarget,
   domEventName: DOMEventName,
-  eventSymtemFlags: EventSystemFlags
+  eventSymtemFlags: EventSystemFlags 
 ): Function => {
   const eventPriority = getEventPriority(domEventName)
 

@@ -88,10 +88,6 @@ export function initialUpdateQueue(fiber) {
 
 <img src="./img/queuepending_1644750048819.png">
 
-<img src="./img/createRoot.jpeg">
-
-<img src="./img/initializeUpdateQueue_1664039386818.png">
-
 ### beginWork
 
 `beginWork` 函数自身就是一个简单的基于 `fiber.tag` 的 switch 语句，这个阶段的逻辑主要在各个分支函数中。`beginWork` 最主要的工作：

@@ -84,13 +84,13 @@ export function initialUpdateQueue(fiber) {
   };
   fiber.updateQueue = queue;
 }
+```
 
 <img src="./img/queuepending_1644750048819.png">
 
 <img src="./img/createRoot.jpeg">
 
 <img src="./img/initializeUpdateQueue_1664039386818.png">
-```
 
 ### beginWork
 

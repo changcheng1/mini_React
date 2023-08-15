@@ -4,6 +4,67 @@
 
 - [深度优先遍历与广度有限遍历](./markdown/dfs.md)
 
+### Fiber 结构
+
+Fiber 是一种数据结构
+
+- React 目前的做法是使用链表, 每个虚拟节点内部表示为一个 Fiber
+
+- 从顶点开始遍历
+
+- 如果有第一个儿子，先遍历第一个儿子
+
+- 如果没有第一个儿子，标志着此节点遍历完成
+
+- 如果有弟弟遍历弟弟
+
+- 如果有没有下一个弟弟，返回父节点标识完成父节点遍历，如果有叔叔遍历叔叔
+
+- 没有父节点遍历结束
+
+![avatar](./img/renderFiber1.jpeg)
+
+```javaScript
+  /**
+ *
+ * @param {*} tag fiber的类型 函数组件0  类组件1 原生组件5 根元素3
+ * @param {*} pendingProps 新属性，等待处理或者说生效的属性
+ * @param {*} key 唯一标识
+ */
+export function FiberNode(tag, pendingProps, key) {
+  this.tag = tag;
+  this.key = key;
+  this.type = null; //fiber类型，来自于 虚拟DOM节点的type  span div p
+  //每个虚拟DOM=>Fiber节点=>真实DOM
+  this.stateNode = null; //此fiber对应的真实DOM节点  h1=>真实的h1DOM
+
+  this.return = null; //指向父节点
+  this.child = null; //指向第一个子节点
+  this.sibling = null; //指向弟弟
+
+  //fiber哪来的？通过虚拟DOM节点创建，虚拟DOM会提供pendingProps用来创建fiber节点的属性
+  this.pendingProps = pendingProps; //等待生效的属性
+  this.memoizedProps = null; //已经生效的属性
+
+  //每个fiber还会有自己的状态，每一种fiber 状态存的类型是不一样的
+  //类组件对应的fiber 存的就是类的实例的状态,HostRoot存的就是要渲染的元素
+  this.memoizedState = null;
+  //每个fiber身上可能还有更新队列
+  this.updateQueue = null;
+  //副作用的标识，表示要针对此fiber节点进行何种操作
+  this.flags = NoFlags; //自己的副作用
+  //子节点对应的副使用标识
+  this.subtreeFlags = NoFlags;
+  //替身，轮替 在后面讲DOM-DIFF的时候会用到
+  this.alternate = null;
+  this.index = 0;
+  this.deletions = null;
+  this.lanes = NoLanes;
+  this.childLanes = NoLanes;
+  this.ref = null;
+}
+```
+
 ### createRoot
 
 确定渲染的根节点，同时调用`createFiberRoot`，创建 Fiber 的根节点，FiberRootNode = containerInfo,它的本质就是一个真实的 DOM 节点，div#root，
@@ -86,7 +147,23 @@ export function initialUpdateQueue(fiber) {
 }
 ```
 
-<img src="./img/queuepending_1644750048819.png">
+### 渲染阶段
+
+React 渲染可以概括为：两大阶段，五小阶段
+
+**render 阶段**
+
+- beginWork:目标是根据新虚拟 DOM 构建新的 fiber 子链表
+
+- completeUnitOfWork:完成一个 Fiber 节点，通过`bubbleProperties`，遍历当前 fiber 的所有子节点，把所有的子节的副作用，以及子节点的子节点的副作用全部合并，以及创建真实的 DOM 节点，也就是 Fiber 上的`stateNode`属性
+
+**commit 阶段**
+
+- commitRoot:提交渲染完的根节点。
+
+- commitMutationEffectsOnFiber:通过`recursivelyTraverseMutationEffects`遍历子节点，处理子节点上的副作用。
+
+- commitReconciliationEffects:往真实 DOM 树中插入 DOM 节点。
 
 ### beginWork
 
@@ -251,6 +328,7 @@ export function completeWork(current, workInProgress) {
 
 ```javaScript
 
+function bubbleProperties(completedWork) {
   let newChildLanes = NoLanes;
   let subtreeFlags = NoFlags;
   //遍历当前fiber的所有子节点，把所有的子节的副作用，以及子节点的子节点的副作用全部合并
@@ -263,5 +341,5 @@ export function completeWork(current, workInProgress) {
   }
   completedWork.childLanes = newChildLanes;
   completedWork.subtreeFlags = subtreeFlags;
-
+}
 ```

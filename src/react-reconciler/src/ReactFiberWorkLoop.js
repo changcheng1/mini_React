@@ -231,7 +231,6 @@ function commitRoot(root) {
 function commitRootImpl(root) {
   //先获取新的构建好的fiber树的根fiber tag=3
   const { finishedWork } = root;
-  console.log("commit", finishedWork.child.memoizedState.memoizedState[0]);
   workInProgressRoot = null;
   workInProgressRootRenderLanes = NoLanes;
   root.callbackNode = null;

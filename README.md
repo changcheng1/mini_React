@@ -684,6 +684,7 @@ function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, native
   try {
     //把当前的更新优先级设置为离散事件优先级 1
     setCurrentUpdatePriority(DiscreteEventPriority);
+    //派发事件
     dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
   } finally {
     setCurrentUpdatePriority(previousPriority);
@@ -752,7 +753,7 @@ function createDispatchListener(instance, listener, currentTarget) {
 
 ```
 
-通过`accumulateSinglePhaseListeners`的执行结果，也就是返回的 listener，放入`dispatchQueue`中
+调用`extractEvents`方法，这里通过不同的事件类型，构建不同的`SyntheticEventCtor`合成对象，将原生事件上拷贝到合成事件实例上，同时重写浏览器兼容
 
 ```javaScript
 /**
@@ -844,7 +845,7 @@ function processDispatchQueueItemsInOrder(
 }
 ```
 
-调用`executeDispatch`执行真正的合成事件触发，合成事件实例的 currentTarget 是不断变化的，event.nativeEventTarget，它是原始的事件源，永远不变，event.currentTarget 是当前的事件源，它是会随着事件回调的执行不断变化的
+调用`executeDispatch`执行真正的合成事件触发，合成事件实例的 currentTarget 是不断变化的，event.nativeEventTarget，它是原始的事件源(#root)，永远不变，event.currentTarget 是当前的事件源，它是会随着事件回调的执行不断变化的
 
 ```javaScript
 function executeDispatch(event, listener, currentTarget) {

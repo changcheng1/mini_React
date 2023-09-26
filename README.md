@@ -4,6 +4,115 @@
 
 - [深度优先遍历与广度有限遍历](./markdown/dfs.md)
 
+
+### JSX转换
+
+eact/jsx-runtime 和 react/jsx-dev-runtime 中的函数只能由编译器转换使用，如果你需要在代码中手动创建元素，你可以继续使用 React.createElement
+
+```javaScript
+  const sourceCode =  `<h1>
+    hello<span style={{color:'red'}}>world</span>
+  </h1>`
+  const result = babel.transform(sourceCode,{
+      // 现在的runTime类型是automatic batching，更新以优先级进行合并，之前是classic,
+      plugins:[["@babel/plugin-transform-react-jsx",{runtime:'automatic'}]]
+  });
+
+  // 所以18版本不用引入React了，现在不需要手动引入React这个变量了
+  import { jsx } from "react/jsx-runtime";
+
+    jsx("h1", {
+      children:["hello",jsx("span",{
+        style:{
+            color:"red"
+        },
+        children:"world"
+      })]
+      children: "hello"
+    });
+    // 和之前老版本17之前的其实是一个东西
+    React.createElement = jsx
+```
+
+```javaScript
+import ReactCurrentOwner from './ReactCurrentOwner';
+import { REACT_ELEMENT_TYPE } from '../shared/ReactSymbols';
+function hasValidRef(config) {
+    return config.ref !== undefined;
+}
+function hasValidKey(config) {
+    return config.key !== undefined;
+}
+const RESERVED_PROPS = {
+    key: true,
+    ref: true,
+    __self: true,
+    __source: true
+}
+//是react-babel 将<span>A<span><span>A<span>变成数组了吗？
+//createElement(type,config,spanA, );
+export function jsxDEV(type, config, children) {
+    let propName;//定义一个变量叫属性名
+    const props = {};//定义一个元素的props对象
+    let key = null;//在兄弟节点中唯一标识自己的唯一性的，在同一个的不同兄弟之间key要求不同
+    let ref = null;//ref=React.createRef() "username" this.refs.username {input=>this.username = input} 从而得到真实的DOM元素
+    let self = null;//用来获取真实的this指针
+    let source = null;//用来定位创建此虚拟DOM元素在源码的位置 哪个文件 哪一行 哪一列
+    if (config !== null) {
+        if (hasValidRef(config)) {
+            ref = config.ref;
+        }
+        if (hasValidKey(config)) { //校验key是否合法
+            key = config.key;
+        }
+        self = config.__self === undefined ? null : config.__self;
+        source = config.__source === undefined ? null : config.__source;
+        for (propName in config) {
+            if (!RESERVED_PROPS.hasOwnProperty(propName)) { // 排除原型上的属性
+                props[propName] = config[propName]
+            }
+        }
+    }
+    const childrenLength = arguments.length - 2;
+    if (childrenLength === 1) {
+        props.children = children;//如果说是独生子的话children是一个对象
+    } else if (childrenLength > 1) {
+        const childArray = Array(childrenLength);
+        for (let i = 0; i < childrenLength; i++) {
+            childArray[i] = arguments[i + 2];
+        }
+        props.children = childArray;//如果说是有多个儿子的话，props.children就是一个数组了
+    }
+    if (type && type.defaultProps) {
+        const defaultProps = type.defaultProps;
+        //只有当属性对象没有此属性对应的值的时候，默认属性才会生效，否则直接忽略
+        for (propName in defaultProps) {
+            if (props[propName] === undefined) {
+                props[propName] = defaultProps[propName]
+            }
+        }
+    }
+    //ReactCurrentOwner此元素的拥有者
+    return ReactElement(
+        type, key, ref, self, source, ReactCurrentOwner.current, props
+    )
+}
+function ReactElement(type, key, ref, _self, _source, _owner, props) {
+    const element = {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type, // 类型
+        key, // 唯一标识
+        ref,  // 用来获取真实Dom元素
+        props, // 属性 children style className等
+        _owner, // 此元素的拥有者
+        _self, //真实的this指针
+        _source // 定位打包之后的具体哪一行
+    }
+    return element;
+}
+```
+
+
 ### Fiber 结构
 
 Fiber 是一种数据结构
@@ -64,6 +173,29 @@ export function FiberNode(tag, pendingProps, key) {
   this.ref = null;
 }
 ```
+
+### Fiber 双缓存树
+
+1.react 根据双缓冲机制维护了两个 fiber 树，因为更新时依赖于老状态的
+
+`current Fiber树`：用于渲染页面
+
+`workinProgress Fiber树`：用于在内存构建中，方便在构建完成后直接替换 current Fiber 树
+
+2.Fiber 双缓存
+
+`首次渲染时`：
+render 阶段会根据 jsx 对象生成新的 Fiber 节点，然后这些 Fiber 节点会被标记成带有‘Placement’的副作用，说明他们是新增节点，需要被插入到真实节点中，在 commitWork 阶段就会操作成真实节点，将它们插入到 dom 树中。
+
+`页面触发更新时`:
+render 阶段会根据最新的 jsx 生成的虚拟 dom 和 current Fiber 树进行对比，比较之后生成 workinProgress Fiber(workinProgress Fiber 树的 alternate 指向 Current Fiber 树的对应节点，这些 Fiber 会带有各种副作用，比如‘Deletion’、‘Update’、'Placement’等)这一对比过程就是 diff 算法
+
+当 workinProgress Fiber 树构建完成，workInprogress 则成为了 curent Fiber 渲染到页面上
+
+diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣成 workInprogress Fiber
+
+![avatar](./img/renderRootFiber.jpg)
+
 
 ### createRoot
 
@@ -208,7 +340,9 @@ React 渲染可以概括为：两大阶段，五小阶段
 
 返回新的子 fiber 节点作为下一个工作的 fiber 节点
 
-模拟 React 中 `processUpdateQueue`函数，根据老状态和更新队列中的更新计算最新的状态。
+模拟 React 中 `processUpdateQueue`函数，根据老状态和更新队列中的更新计算最新的状态，与 hook 中的更新队列一样，都是循环链表。
+
+![avatar](./img/createUpdateQueue.png)
 
 ```javaScript
 /**
@@ -255,7 +389,7 @@ function processUpdateQueue(fiber) {
   }
 }
 /**
- * 根据老状态计算新状态
+ * 模拟queue根据老状态计算新状态
  */
 function getStateFromUpdate(update, prevState) {
   return Object.assign({}, update.payload, prevState);
@@ -271,7 +405,7 @@ let update2 = createUpdate();
 update2.payload = { name: "cc" };
 enqueueUpdate(fiber, update2);
 
-// fiber的udpateQueue也就是圆形链表
+// fiber的udpateQueue也就是环形链表
 // const fiberRsult = {
 //   memoizedState: { sex: "男" },
 //   updateQueue: {
@@ -367,10 +501,10 @@ function ensureRootIsScheduled(root, currentTime) {
   //在根节点的执行的任务是newCallbackNode
   root.callbackNode = newCallbackNode;
   root.callbackPriority = newCallbackPriority;
-  /*  if (workInProgressRoot) return;
+   if (workInProgressRoot) return;
    workInProgressRoot = root;
    //告诉 浏览器要执行performConcurrentWorkOnRoot 在此触发更新
-   scheduleCallback(NormalSchedulerPriority, performConcurrentWorkOnRoot.bind(null, root)); */
+   Scheduler_scheduleCallback(NormalSchedulerPriority, performConcurrentWorkOnRoot.bind(null, root));
 }
 
 ```
@@ -852,4 +986,623 @@ function executeDispatch(event, listener, currentTarget) {
   event.currentTarget = currentTarget;
   listener(event);
 }
+```
+
+### mountReducer
+
+![avatar](./img/mountReducer_1678679227351.png)
+
+在函数执行之前，也就是`renderWithHooks`函数里，根据`current`和`memoizedState`判断是挂载还是更新赋值不同的 dispatch
+
+```javaScript
+/**
+ * 渲染函数组件
+ * @param {*} current 老fiber
+ * @param {*} workInProgress 新fiber
+ * @param {*} Component 组件定义
+ * @param {*} props 组件属性
+ * @returns 虚拟DOM或者说React元素
+ */
+export function renderWithHooks(current, workInProgress, Component, props, nextRenderLanes) {
+  //当前正在渲染的车道
+  renderLanes = nextRenderLanes
+  // 正在渲染的Fiber
+  currentlyRenderingFiber = workInProgress;
+  //函数组件更新队列里存的effect
+  workInProgress.updateQueue = null;
+  //函数组件状态存的hooks的链表
+  workInProgress.memoizedState = null;
+  //如果有老的fiber,并且有老的hook链表，当current类型不同，memoizedState值并不是相同的类型的
+  if (current !== null && current.memoizedState !== null) {
+    ReactCurrentDispatcher.current = HooksDispatcherOnUpdate;
+  } else {
+    ReactCurrentDispatcher.current = HooksDispatcherOnMount;
+  }
+  //需要要函数组件执行前给ReactCurrentDispatcher.current赋值
+  const children = Component(props);
+  currentlyRenderingFiber = null;
+  workInProgressHook = null;
+  currentHook = null;
+  renderLanes = NoLanes;
+  return children;
+}
+```
+
+`useReduce`初次挂载时，会调用`mountWorkInProgressHook`方法构建挂载中的 Hook，全局的`currentlyRenderingFiber.memoizedState`指向第一个 hook，
+`workInProgressHook`保存当前的 hook，`workInProgressHook.next`等于最新的 hook，构建一个单向链表，`currentlyRenderingFiber.memoizedState`，指向第一个，方便从头查找
+
+```javaScript
+const HooksDispatcherOnMount = {
+  useReducer: mountReducer,
+  useState: mountState,
+  useEffect: mountEffect,
+  useLayoutEffect: mountLayoutEffect,
+  useRef: mountRef,
+};
+function mountReducer(reducer, initialArg) {
+  const hook = mountWorkInProgressHook();
+  hook.memoizedState = initialArg;
+  const queue = {
+    pending: null,
+    dispatch: null,
+    lastRenderedReducer: reducer,
+    lastRenderedState: initialArg,
+  };
+  hook.queue = queue;
+  // 构建派发动作，传入当前的fiber和更新队列
+  const dispatch = (queue.dispatch = dispatchReducerAction.bind(
+    null,
+    currentlyRenderingFiber,
+    queue
+  ));
+  return [hook.memoizedState, dispatch];
+}
+
+/**
+ * 挂载构建中的hook
+ * */
+function mountWorkInProgressHook() {
+  const hook = {
+    memoizedState: null, //hook的状态 0
+    queue: null, //存放本hook的更新队列 queue.pending=update的循环链表
+    next: null, //指向下一个hook,一个函数里可以会有多个hook,它们会组成一个单向链表
+    baseState: null, //第一跳过的更新前的状态
+    baseQueue: null, //跳过的更新的链表
+  };
+  if (workInProgressHook === null) {
+    //当前函数对应的fiber的状态等于第一个hook对象
+    currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+  } else {
+    workInProgressHook = workInProgressHook.next = hook;
+  }
+  return workInProgressHook;
+}
+```
+
+`dispatchReducerAction`用来执行派发动作，新建`update对象`,`update`对象是一个循环链表
+
+```javaScript
+/**
+ * 执行派发动作的方法，它要更新状态，并且让界面重新更新
+ * @param {*} fiber function对应的fiber
+ * @param {*} queue 当前hook对应的更新队列
+ * @param {*} action 派发的函数
+ */
+function dispatchReducerAction(fiber, queue, action) {
+  //在每个hook里会存放一个更新队列，更新队列是一个更新对象的循环链表update1.next=update2.next=update1
+  const update = {
+    action, //{ type: 'add', payload: 1 } 派发的动作
+    next: null, //指向下一个更新对象
+  };
+  //把当前的最新的更添的添加更新队列中，并且返回当前的根fiber
+  const root = enqueueConcurrentHookUpdate(fiber, queue, update);
+  const eventTime = requestEventTime();
+  // 从root开始更新
+  scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+}
+
+/**
+ * 把更新队列添加到更新队列中
+ * @param {*} fiber 函数组件对应的fiber
+ * @param {*} queue 要更新的hook对应的更新队列
+ * @param {*} update 更新对象
+ */
+export function enqueueConcurrentHookUpdate(fiber, queue, update, lane) {
+  enqueueUpdate(fiber, queue, update, lane);
+  return getRootForUpdatedFiber(fiber);
+}
+```
+
+```javaScript
+/**
+ * 把更新先缓存到全局的concurrentQueue数组中
+ * @param {*} fiber
+ * @param {*} queue
+ * @param {*} update
+ */
+function enqueueUpdate(fiber, queue, update, lane) {
+  //012 setNumber1 345 setNumber2 678 setNumber3
+  concurrentQueues[concurrentQueuesIndex++] = fiber;//函数组件对应的fiber
+  concurrentQueues[concurrentQueuesIndex++] = queue;//要更新的hook对应的更新队列
+  concurrentQueues[concurrentQueuesIndex++] = update; //更新对象
+  concurrentQueues[concurrentQueuesIndex++] = lane; //更新对应的赛道
+  //当我们向一个fiber上添加一个更新的时候，要把此更新的赛道合并到此fiber的赛道上
+  fiber.lanes = mergeLanes(fiber.lanes, lane);
+}
+```
+
+全局属性`concurrentQueues`与`concurrentQueuesIndex`，一个用来存放更新队列，一个用来记录索引，4 个一组存起来,`fiber`、`queue`、`update`、`lane`，假设调用了二次 useState，setNumber(number += 1)，初始 number 为 0
+
+```javaScript
+[{
+  fiber,
+  {
+    dispatch:()=>{},
+    lastRenderReducer:baseStateReducer(state, action),
+    lastRenderState:1,
+    pending:null,
+  },
+  {
+   action: 1
+   eagerState: 1
+   hasEagerState: true
+   lane: 1,
+   next:{
+      action: 1
+      eagerState: 1
+      hasEagerState: true
+      lane: 1,
+     ... // 循环链表
+    }
+   },
+  lane:1,
+},
+{
+  fiber,
+  {
+    dispatch:()=>{},
+    lastRenderReducer:baseStateReducer(state, action),
+    lastRenderState:2,
+    pending:null,
+  },
+  {
+   action: 2
+   eagerState: null
+   hasEagerState: false
+   lane: 1,
+   next:{
+      action: 2
+      eagerState: null
+      hasEagerState: false
+      lane: 1,
+     ... // 循环链表
+    }
+   },
+  lane:1,
+},
+]
+```
+
+调用`enqueueUpdate`函数，将 fiber、hook 等缓存到`concurrentQueues`以后，调用 `getRootForUpdatedFiber`，从当前的 fiber 找到 hostRoot，也就是根节点（FiberRootNode）, div #root
+
+```javaScript
+function getRootForUpdatedFiber(sourceFiber) {
+  let node = sourceFiber;
+  let parent = node.return;
+  while (parent !== null) {
+    node = parent;
+    parent = node.return;
+  }
+  return node.tag === HostRoot ? node.stateNode : null;  //FiberRootNode div#root
+}
+```
+
+调用完毕`getRootForUpdatedFiber`函数以后，直接调用`scheduleUpdateOnFiber`，从 root 进行更新，在`prepareFreshStack`函数中，调用`finishQueueingConcurrentUpdates`函数，进行更新，
+
+```javaScript
+
+export function finishQueueingConcurrentUpdates() {
+  const endIndex = concurrentQueuesIndex;// 缓存一下索引长度
+  concurrentQueuesIndex = 0; // 然后重置0
+  let i = 0;
+  while (i < endIndex) {
+    const fiber = concurrentQueues[i++];
+    const queue = concurrentQueues[i++];
+    const update = concurrentQueues[i++];
+    const lane = concurrentQueues[i++];
+    if (queue !== null && update !== null) {
+      const pending = queue.pending;
+      if (pending === null) {
+        update.next = update;
+      } else {
+        update.next = pending.next;
+        pending.next = update;
+      }
+      queue.pending = update;
+    }
+  }
+}
+```
+
+### updateReducer
+
+![avatar](./img/hookUpdate.jpg)
+
+reducer 更新逻辑：调用`renderWithHooks`以后，判断是否有老的 fiber，还有 fiber 的 memoizedState 状态，**函数 fiber 中 的 memoizedState 中，存的是 hook 的单向链表，hook 中的 memoizedState 中存的才是状态**，调用`HooksDispatcherOnUpdate`，走更新逻辑,调用`updateWorkInProgressHook`函数，通过当前 Fiber 的 alternate 获取老 Fiber，通过老 Fiber 上的 memoizedState 获取 hook，通过老 hook，创建新 hook，然后赋值 workInProgressHook，创建单向链表
+
+![avatar](./img/memoizedStateQueue.png)
+
+```javaScript
+/**
+ * 构建新的hooks
+ */
+function updateWorkInProgressHook() {
+  //获取将要构建的新的hook的老hook
+  if (currentHook === null) {
+    const current = currentlyRenderingFiber.alternate;
+    currentHook = current.memoizedState;
+  } else {
+    currentHook = currentHook.next;
+  }
+  //根据老hook创建新hook
+  const newHook = {
+    memoizedState: currentHook.memoizedState,
+    queue: currentHook.queue,
+    next: null,
+    baseState: currentHook.baseState,
+    baseQueue: currentHook.baseQueue,
+  };
+  if (workInProgressHook === null) {
+    currentlyRenderingFiber.memoizedState = workInProgressHook = newHook;
+  } else {
+    workInProgressHook = workInProgressHook.next = newHook;
+  }
+  return workInProgressHook;
+}
+```
+
+执行 useReducer 方法的派发
+
+```javaScript
+function updateReducer(reducer) {
+  // 获取新的hook
+  const hook = updateWorkInProgressHook();
+  // 获取hook 的更新队列
+  const queue = hook.queue;
+  queue.lastRenderedReducer = reducer;
+  // 获取老的hook
+  const current = currentHook;
+  let baseQueue = current.baseQueue;
+  // 获取更新队列，第一个都是指向最新的
+  const pendingQueue = queue.pending;
+  //把新旧更新链表合并
+  if (pendingQueue !== null) {
+    if (baseQueue !== null) {
+      const baseFirst = baseQueue.next;
+      // 拿到第一个更新
+      const pendingFirst = pendingQueue.next;
+      baseQueue.next = pendingFirst;
+      pendingQueue.next = baseFirst;
+    }
+    current.baseQueue = baseQueue = pendingQueue;
+    // 队列清空
+    queue.pending = null;
+  }
+  if (baseQueue !== null) {
+    printQueue(baseQueue);
+    const first = baseQueue.next;
+    let newState = current.baseState;
+    let newBaseState = null;
+    let newBaseQueueFirst = null;
+    let newBaseQueueLast = null;
+    let update = first;
+    do {
+      const updateLane = update.lane;
+      const shouldSkipUpdate = !isSubsetOfLanes(renderLanes, updateLane);
+      if (shouldSkipUpdate) {
+        const clone = {
+          lane: updateLane,
+          action: update.action,
+          hasEagerState: update.hasEagerState,
+          eagerState: update.eagerState,
+          next: null,
+        };
+        if (newBaseQueueLast === null) {
+          newBaseQueueFirst = newBaseQueueLast = clone;
+          newBaseState = newState;
+        } else {
+          newBaseQueueLast = newBaseQueueLast.next = clone;
+        }
+        currentlyRenderingFiber.lanes = mergeLanes(
+          currentlyRenderingFiber.lanes,
+          updateLane
+        );
+      } else {
+        if (newBaseQueueLast !== null) {
+          const clone = {
+            lane: NoLane,
+            action: update.action,
+            hasEagerState: update.hasEagerState,
+            eagerState: update.eagerState,
+            next: null,
+          };
+          newBaseQueueLast = newBaseQueueLast.next = clone;
+        }
+        if (update.hasEagerState) {
+          newState = update.eagerState;
+        } else {
+          // 派发的动作
+          const action = update.action;
+          // 计算新状态
+          newState = reducer(newState, action);
+        }
+      }
+      update = update.next;
+    // 从头循环到尾
+    } while (update !== null && update !== first);
+    if (newBaseQueueLast === null) {
+      newBaseState = newState;
+    } else {
+      newBaseQueueLast.next = newBaseQueueFirst;
+    }
+    // 设置新状态
+    hook.memoizedState = newState;
+    hook.baseState = newBaseState;
+    hook.baseQueue = newBaseQueueLast;
+    queue.lastRenderedState = newState;
+  }
+  if (baseQueue === null) {
+    queue.lanes = NoLanes;
+  }
+  const dispatch = queue.dispatch;
+  return [hook.memoizedState, dispatch];
+}
+```
+
+### DomDiff
+
+DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
+
+**只对同级元素进行比较**
+
+**不同的类型对应不同的元素**
+
+**可以通过 key 来标识同一个节点**
+
+### 单节点
+
+1.新旧节点 type 和 key 都不一样，标记为删除
+
+2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
+再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
+
+3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
+直接把老的节点全部删除
+
+![avatar](./img/singleDomDiff.jpg)
+
+```javaScript
+
+  function reconcileSingleElement(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    element: ReactElement
+  ): Fiber {
+    const key = element.key;
+    let child = currentFirstChild;
+    // 首先判断是否存在对应DOM节点
+    while (child !== null) {
+      // 上一次更新存在DOM节点，接下来判断是否可复用
+      // 首先比较key是否相同
+      if (child.key === key) {
+        // key相同，接下来比较type是否相同
+        switch (child.tag) {
+          // ...省略case
+          default: {
+            if (child.elementType === element.type) {
+              // type相同则表示可以复用
+              // 删除剩下的兄弟节点
+               deleteRemainingChildren(returnFiber, child.sibling)
+               // 复用fiber，更新props
+               const existing = useFiber(child, element.props)
+               existing.return = returnFiber
+               return existing
+            }
+            //key相同但是type变了，直接停止遍历，把后面的节点都删了
+            deleteRemainingChildren(returnFiber, child)
+            break
+          }
+        }
+        // 代码执行到这里代表：key相同但是type不同
+        // 将该fiber及其兄弟fiber标记为删除
+        deleteRemainingChildren(returnFiber, child);
+        break;
+      } else {
+        // key不同，将该fiber标记为删除
+        deleteChild(returnFiber, child);
+      }
+      child = child.sibling;
+    }
+    //一个都不能复用，直接重新创建一个，根据jsx创建fiber节点
+    const created = createFiberFromElement(element, returnFiber.mode, lanes)
+    // 建立与父级的关系
+    created.return = returnFiber
+    return created
+  }
+
+```
+
+### 多节点
+
+```javaScript
+
+  // 之前
+  abcd
+  // 之后
+  acdb
+
+  ===第一轮遍历开始===
+  a（之后）vs a（之前）
+  key不变，可复用
+  此时 a 对应的oldFiber（之前的a）在之前的数组（abcd）中索引为0
+  所以 lastPlacedIndex = 0;
+
+  继续第一轮遍历...
+
+  c（之后）vs b（之前）
+  key改变，不能复用，跳出第一轮遍历
+  此时 lastPlacedIndex === 0;
+  ===第一轮遍历结束===
+
+  ===第二轮遍历开始===
+  newChildren === cdb，没用完，不需要执行删除旧节点
+  oldFiber === bcd，没用完，不需要执行插入新节点
+
+  将剩余oldFiber（bcd）保存为map
+
+  // 当前oldFiber：bcd
+  // 当前newChildren：cdb
+
+  继续遍历剩余newChildren
+
+  key === c 在 oldFiber中存在
+  const oldIndex = c（之前）.index;
+  此时 oldIndex === 2;  // 之前节点为 abcd，所以c.index === 2
+  比较 oldIndex 与 lastPlacedIndex;
+
+  如果 oldIndex >= lastPlacedIndex 代表该可复用节点不需要移动
+  并将 lastPlacedIndex = oldIndex;
+  如果 oldIndex < lastplacedIndex 该可复用节点之前插入的位置索引小于这次更新需要插入的位置索引，代表该节点需要向右移动
+
+  在例子中，oldIndex 2 > lastPlacedIndex 0，
+  则 lastPlacedIndex = 2;
+  c节点位置不变
+
+  继续遍历剩余newChildren
+
+  // 当前oldFiber：bd
+  // 当前newChildren：db
+
+  key === d 在 oldFiber中存在
+  const oldIndex = d（之前）.index;
+  oldIndex 3 > lastPlacedIndex 2 // 之前节点为 abcd，所以d.index === 3
+  则 lastPlacedIndex = 3;
+  d节点位置不变
+
+  继续遍历剩余newChildren
+
+  // 当前oldFiber：b
+  // 当前newChildren：b
+
+  key === b 在 oldFiber中存在
+  const oldIndex = b（之前）.index;
+  oldIndex 1 < lastPlacedIndex 3 // 之前节点为 abcd，所以b.index === 1
+  则 b节点需要向右移动
+  ===第二轮遍历结束===
+
+  最终acd 3个节点都没有移动，b节点被标记为移动
+
+```
+
+![avatar](./img/domDiff_move.jpg)
+
+```javaScript
+
+      function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
+        //将要返回的第一个新fiber，也就是workInProgress
+        let resultingFirstChild = null;
+        //上一个新fiber
+        let previousNewFiber = null;
+        //当前的老fiber
+        let oldFiber = currentFirstChild;
+        //下一个老fiber
+        let nextOldFiber = null;
+        //新的虚拟DOM的索引
+        let newIdx = 0;
+        // 新的Fiber节点在老的Fiber节点中的索引位置，用来处理Fiber节点位置的变化，也就是oldFiber index
+        let lastPlacedIndex = 0;
+        //处理更新的情况 老fiber和新fiber都存在
+        for (; oldFiber && newIdx < newChildren.length; newIdx++) {
+            //先缓存下一个老fiber
+            nextOldFiber = oldFiber.sibling;
+            //  判断该对应位置的fiber是否可以复用
+            //  只有type相同且key也相同的情况下才会复用
+            //  diff函数会根据该函数的返回值进行相关的操作
+            //  如果key不相同直接返回null代表可能节点的位置发生了变更，
+            //  简单的循环是行不通的所以待会会进入updateFromMap逻辑，
+            //  如果是key相同但是type变了就选择不复用，而是选择重新创建一个元素返回
+            //  就会将以前同key的元素标记为删除
+            const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx]);
+            //如果key 不一样，直接跳出第一轮循环
+            if (!newFiber)
+                break;
+            //老fiber存在，但是新节点没有alternate，说明是新创建的节点，将老Fiber标记为删除，继续遍历
+            if (oldFiber && !newFiber.alternate) {
+                deleteChild(returnFiber, oldFiber);
+            }
+              //  如果是首次mount则 lastPlacedIndex没有意义，该值主要用来判断该节点在这次更新后
+              //  是不是原来在他后面的节点，现在跑到他前面了如果是他就是需要重新插入dom树的
+              //  那么怎么判断他后面的节点是不是跑到他前面了呢，考虑以下情况
+              //  更新前: 1 -> 2 -> 3 -> 4
+              //  更新后: 1 -> 3 -> 2 -> 4
+              //  在处理该次更新时，当遍历到2时，此时lastPlacedIndex为2，而2的oldIndex为1
+              //  所以可以判断到newFiber.oldIndex<lastPlacedIndex，老的Fiber对应的真实dom需要移动了
+              //  但是现在跑到他前面了，所以newFiber也就是2是需要重新插入dom树的
+              //  在commit阶段时，对2相应的dom进行重新插入时，
+              //  会寻找他后面第一个不需要进行插入操作的dom元素作为insertBefore
+              //  的第二个参数，所以2对应的dom会被插入到4前面
+
+            lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+            if (previousNewFiber === null) {
+                resultingFirstChild = newFiber;
+            } else {
+                previousNewFiber.sibling = newFiber;
+            }
+            previousNewFiber = newFiber;
+            oldFiber = nextOldFiber;
+        }
+        // 老Fiber和新Fiber同时遍历完成，删除剩下的oldFiber就行
+        if (newIdx === newChildren.length) {
+            deleteRemainingChildren(returnFiber, oldFiber);
+            return resultingFirstChild;
+        }
+        //如果老Fiber是遍历完的，但是新的Fiber还没遍历完，第一次挂载其实也是在这里的逻辑，因为没有oldFiber
+        if (oldFiber === null) {
+            //循环虚拟DOM数组， 为每个虚拟DOM创建一个新的fiber
+            for (; newIdx < newChildren.length; newIdx++) {
+                const newFiber = createChild(returnFiber, newChildren[newIdx]);
+                lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+                if (!previousNewFiber) {
+                    resultingFirstChild = newFiber;
+                } else {
+                    previousNewFiber.sibling = newFiber;
+                }
+                previousNewFiber = newFiber;
+            }
+            return resultingFirstChild;
+        }
+        //将剩下的老fiber放入map中 {key:key,value:Fiber}
+        const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
+        for (; newIdx < newChildren.length; newIdx++) {
+            //去map中找找有没key相同并且类型相同可以复用的老fiber 老真实DOM
+            const newFiber = updateFromMap(existingChildren, returnFiber, newIdx, newChildren[newIdx]);
+            if (newFiber !== null) {
+                //说明是复用的老fiber
+                if (newFiber.alternate) {
+                    existingChildren.delete(newFiber.key || newIdx);
+                }
+                lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+                if (previousNewFiber === null) {
+                    resultingFirstChild = newFiber;
+                } else {
+                    previousNewFiber.sibling = newFiber;
+                }
+                previousNewFiber = newFiber;
+            }
+        }
+        //map中剩下是没有被 复用的，全部删除
+        existingChildren.forEach(child => deleteChild(returnFiber, child));
+        return resultingFirstChild;
+    }
+
 ```

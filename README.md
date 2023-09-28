@@ -651,8 +651,110 @@ export function completeWork(current, workInProgress) {
   }
 }
 ```
+调用`updateHostComponent`，拿到current的老属性和新的newProps，收集属性差异
 
-`bubbleProperties`：遍历当前 fiber 的所有子节点，把所有的子节的副作用，以及子节点的子节点的副作用全部合并
+```javaScript
+/**
+ * 在fiber(button)的完成阶段准备更新DOM
+ * @param {*} current button老fiber
+ * @param {*} workInProgress button的新fiber
+ * @param {*} type 类型
+ * @param {*} newProps 新属性
+ */
+function updateHostComponent(current, workInProgress, type, newProps) {
+  const oldProps = current.memoizedProps;//老的属性
+  const instance = workInProgress.stateNode;//老的DOM节点
+  //比较新老属性，收集属性的差异
+  const updatePayload = prepareUpdate(instance, type, oldProps, newProps);
+  //让原生组件的新fiber更新队列等于[]
+  workInProgress.updateQueue = updatePayload;
+  if (updatePayload) {
+    markUpdate(workInProgress);
+  }
+}
+```
+
+```javaScript
+export function prepareUpdate(domElement, type, oldProps, newProps) {
+  return diffProperties(domElement, type, oldProps, newProps);
+}
+```
+
+调用`diffProperties`，将差异收集到`updatePayload`数组当中，然后将 workInProgress.updateQueue = updatePayload，然后将副作用标记为更新
+
+```javaScript
+export function diffProperties(domElement, tag, lastProps, nextProps) {
+  let updatePayload = null;
+  let propKey;
+  let styleName;
+  let styleUpdates = null;
+  //处理属性的删除 如果说一个属性在老对象里有，新对象没有的话，那就意味着删除
+  for (propKey in lastProps) {
+    //如果新属性对象里有此属性，或者老的没有此属性，或者老的是个null
+    if (nextProps.hasOwnProperty(propKey) || !lastProps.hasOwnProperty(propKey) || lastProps[propKey] === null) {
+      continue;
+    }
+    if (propKey === STYLE) {
+      const lastStyle = lastProps[propKey];
+      for (styleName in lastStyle) {
+        if (lastStyle.hasOwnProperty(styleName)) {
+          if (!styleUpdates) {
+            styleUpdates = {};
+          }
+          styleUpdates[styleName] = '';
+        }
+      }
+    } else {
+      (updatePayload = updatePayload || []).push(propKey, null);
+    }
+  }
+  //遍历新的属性对象
+  for (propKey in nextProps) {
+    const nextProp = nextProps[propKey];//新属性中的值
+    const lastProp = lastProps !== null ? lastProps[propKey] : undefined;//老属性中的值
+    if (!nextProps.hasOwnProperty(propKey) || nextProp === lastProp || (nextProp === null && lastProp === null)) {
+      continue;
+    }
+    if (propKey === STYLE) {
+      if (lastProp) {
+        //计算要删除的行内样式
+        for (styleName in lastProp) {
+          //如果此样式对象里在的某个属性老的style里有，新的style里没有
+          if (lastProp.hasOwnProperty(styleName) && (!nextProp || !nextProp.hasOwnProperty(styleName))) {
+            if (!styleUpdates)
+              styleUpdates = {};
+            styleUpdates[styleName] = '';
+          }
+        }
+        //遍历新的样式对象
+        for (styleName in nextProp) {
+          //如果说新的属性有，并且新属性的值和老属性不一样
+          if (nextProp.hasOwnProperty(styleName) && lastProp[styleName] !== nextProp[styleName]) {
+            if (!styleUpdates)
+              styleUpdates = {};
+            styleUpdates[styleName] = nextProp[styleName];
+          }
+        }
+      } else {
+        styleUpdates = nextProp;
+      }
+    } else if (propKey === CHILDREN) {
+      if (typeof nextProp === 'string' || typeof nextProp === 'number') {
+        (updatePayload = updatePayload || []).push(propKey, nextProp);
+      }
+    } else {
+      (updatePayload = updatePayload || []).push(propKey, nextProp);
+    }
+  }
+  if (styleUpdates) {
+    (updatePayload = updatePayload || []).push(STYLE, styleUpdates);
+  }
+  return updatePayload;//[key1,value1,key2,value2]
+}
+```
+
+
+当完成一个节点之后，调用`bubbleProperties`，遍历当前 fiber 的所有子节点，把所有的子节的副作用，以及子节点的子节点的副作用全部合并
 
 ```javaScript
 
@@ -669,6 +771,69 @@ function bubbleProperties(completedWork) {
   }
   completedWork.childLanes = newChildLanes;
   completedWork.subtreeFlags = subtreeFlags;
+}
+```
+当收集副作用完毕，调用`commitRootImpl`，运行`commitMutationEffectsOnFiber`，进行副作用变更
+
+```javaScript
+/**
+ * 遍历fiber树，执行fiber上的副作用
+ * @param {*} finishedWork fiber节点
+ * @param {*} root 根节点
+ */
+export function commitMutationEffectsOnFiber(finishedWork, root) {
+  const current = finishedWork.alternate;
+  const flags = finishedWork.flags;
+  switch (finishedWork.tag) {
+    case FunctionComponent:
+      {
+        //先遍历它们的子节点，处理它们的子节点上的副作用
+        recursivelyTraverseMutationEffects(root, finishedWork);
+        //再处理自己身上的副作用
+        commitReconciliationEffects(finishedWork);
+        if (flags & Update) {
+          commitHookEffectListUnmount(HookHasEffect | HookLayout, finishedWork);
+        }
+        break;
+      }
+    case HostRoot:
+    case HostText: {
+      //先遍历它们的子节点，处理它们的子节点上的副作用
+      recursivelyTraverseMutationEffects(root, finishedWork);
+      //再处理自己身上的副作用
+      commitReconciliationEffects(finishedWork);
+      break;
+    }
+    case HostComponent: {
+      //先遍历它们的子节点，处理它们的子节点上的副作用
+      recursivelyTraverseMutationEffects(root, finishedWork);
+      //再处理自己身上的副作用
+      commitReconciliationEffects(finishedWork);
+      if (flags & Ref) {
+        commitAttachRef(finishedWork);
+      }
+      //处理DOM更新
+      if (flags & Update) {
+        //获取真实DOM
+        const instance = finishedWork.stateNode;
+        //更新真实DOM
+        if (instance !== null) {
+          const newProps = finishedWork.memoizedProps;
+          const oldProps = current !== null ? current.memoizedProps : newProps;
+          const type = finishedWork.type;
+          const updatePayload = finishedWork.updateQueue;
+          finishedWork.updateQueue = null;
+          if (updatePayload) {
+            commitUpdate(instance, updatePayload, type, oldProps, newProps, finishedWork);
+          }
+
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
 }
 ```
 
@@ -992,7 +1157,7 @@ function executeDispatch(event, listener, currentTarget) {
 
 ![avatar](./img/mountReducer_1678679227351.png)
 
-在函数执行之前，也就是`renderWithHooks`函数里，根据`current`和`memoizedState`判断是挂载还是更新赋值不同的 dispatch
+在函数执行之前，也就是`renderWithHooks`函数里，根据`current`和`current.memoizedState`判断是挂载还是更新赋值不同的 dispatch
 
 ```javaScript
 /**
@@ -1079,158 +1244,15 @@ function mountWorkInProgressHook() {
 }
 ```
 
-`dispatchReducerAction`用来执行派发动作，新建`update对象`,`update`对象是一个循环链表
-
-```javaScript
-/**
- * 执行派发动作的方法，它要更新状态，并且让界面重新更新
- * @param {*} fiber function对应的fiber
- * @param {*} queue 当前hook对应的更新队列
- * @param {*} action 派发的函数
- */
-function dispatchReducerAction(fiber, queue, action) {
-  //在每个hook里会存放一个更新队列，更新队列是一个更新对象的循环链表update1.next=update2.next=update1
-  const update = {
-    action, //{ type: 'add', payload: 1 } 派发的动作
-    next: null, //指向下一个更新对象
-  };
-  //把当前的最新的更添的添加更新队列中，并且返回当前的根fiber
-  const root = enqueueConcurrentHookUpdate(fiber, queue, update);
-  const eventTime = requestEventTime();
-  // 从root开始更新
-  scheduleUpdateOnFiber(root, fiber, lane, eventTime);
-}
-
-/**
- * 把更新队列添加到更新队列中
- * @param {*} fiber 函数组件对应的fiber
- * @param {*} queue 要更新的hook对应的更新队列
- * @param {*} update 更新对象
- */
-export function enqueueConcurrentHookUpdate(fiber, queue, update, lane) {
-  enqueueUpdate(fiber, queue, update, lane);
-  return getRootForUpdatedFiber(fiber);
-}
-```
-
-```javaScript
-/**
- * 把更新先缓存到全局的concurrentQueue数组中
- * @param {*} fiber
- * @param {*} queue
- * @param {*} update
- */
-function enqueueUpdate(fiber, queue, update, lane) {
-  //012 setNumber1 345 setNumber2 678 setNumber3
-  concurrentQueues[concurrentQueuesIndex++] = fiber;//函数组件对应的fiber
-  concurrentQueues[concurrentQueuesIndex++] = queue;//要更新的hook对应的更新队列
-  concurrentQueues[concurrentQueuesIndex++] = update; //更新对象
-  concurrentQueues[concurrentQueuesIndex++] = lane; //更新对应的赛道
-  //当我们向一个fiber上添加一个更新的时候，要把此更新的赛道合并到此fiber的赛道上
-  fiber.lanes = mergeLanes(fiber.lanes, lane);
-}
-```
-
-全局属性`concurrentQueues`与`concurrentQueuesIndex`，一个用来存放更新队列，一个用来记录索引，4 个一组存起来,`fiber`、`queue`、`update`、`lane`，假设调用了二次 useState，setNumber(number += 1)，初始 number 为 0
-
-```javaScript
-[{
-  fiber,
-  {
-    dispatch:()=>{},
-    lastRenderReducer:baseStateReducer(state, action),
-    lastRenderState:1,
-    pending:null,
-  },
-  {
-   action: 1
-   eagerState: 1
-   hasEagerState: true
-   lane: 1,
-   next:{
-      action: 1
-      eagerState: 1
-      hasEagerState: true
-      lane: 1,
-     ... // 循环链表
-    }
-   },
-  lane:1,
-},
-{
-  fiber,
-  {
-    dispatch:()=>{},
-    lastRenderReducer:baseStateReducer(state, action),
-    lastRenderState:2,
-    pending:null,
-  },
-  {
-   action: 2
-   eagerState: null
-   hasEagerState: false
-   lane: 1,
-   next:{
-      action: 2
-      eagerState: null
-      hasEagerState: false
-      lane: 1,
-     ... // 循环链表
-    }
-   },
-  lane:1,
-},
-]
-```
-
-调用`enqueueUpdate`函数，将 fiber、hook 等缓存到`concurrentQueues`以后，调用 `getRootForUpdatedFiber`，从当前的 fiber 找到 hostRoot，也就是根节点（FiberRootNode）, div #root
-
-```javaScript
-function getRootForUpdatedFiber(sourceFiber) {
-  let node = sourceFiber;
-  let parent = node.return;
-  while (parent !== null) {
-    node = parent;
-    parent = node.return;
-  }
-  return node.tag === HostRoot ? node.stateNode : null;  //FiberRootNode div#root
-}
-```
-
-调用完毕`getRootForUpdatedFiber`函数以后，直接调用`scheduleUpdateOnFiber`，从 root 进行更新，在`prepareFreshStack`函数中，调用`finishQueueingConcurrentUpdates`函数，进行更新，
-
-```javaScript
-
-export function finishQueueingConcurrentUpdates() {
-  const endIndex = concurrentQueuesIndex;// 缓存一下索引长度
-  concurrentQueuesIndex = 0; // 然后重置0
-  let i = 0;
-  while (i < endIndex) {
-    const fiber = concurrentQueues[i++];
-    const queue = concurrentQueues[i++];
-    const update = concurrentQueues[i++];
-    const lane = concurrentQueues[i++];
-    if (queue !== null && update !== null) {
-      const pending = queue.pending;
-      if (pending === null) {
-        update.next = update;
-      } else {
-        update.next = pending.next;
-        pending.next = update;
-      }
-      queue.pending = update;
-    }
-  }
-}
-```
-
 ### updateReducer
 
 ![avatar](./img/hookUpdate.jpg)
 
-reducer 更新逻辑：调用`renderWithHooks`以后，判断是否有老的 fiber，还有 fiber 的 memoizedState 状态，**函数 fiber 中 的 memoizedState 中，存的是 hook 的单向链表，hook 中的 memoizedState 中存的才是状态**，调用`HooksDispatcherOnUpdate`，走更新逻辑,调用`updateWorkInProgressHook`函数，通过当前 Fiber 的 alternate 获取老 Fiber，通过老 Fiber 上的 memoizedState 获取 hook，通过老 hook，创建新 hook，然后赋值 workInProgressHook，创建单向链表
+reducer 更新逻辑：调用`renderWithHooks`以后，判断是否有老的 fiber，还有 fiber 的 memoizedState 状态，（**fiber和hook上都有memoizedState属性，fiber.memoizedState对应的是hook链表，hook.memoizedState对应的是state**），调用`HooksDispatcherOnUpdate`，走更新逻辑,调用`updateWorkInProgressHook`函数，通过当前 Fiber 的 alternate 获取老 Fiber，通过老 Fiber 上的 memoizedState 获取 hook，通过老 hook，创建新 hook，然后赋值 workInProgressHook，创建单向链表，执行 useReducer 方法的派发,此流程`useState`和`useReducer`方法通用
 
 ![avatar](./img/memoizedStateQueue.png)
+
+`currentlyRenderingFiber`就是`workInProgress`，`workInProgress`存在就代表当前是`render`阶段，触发更新的时候，通过`bind`绑定的`fiber`与`workInProgress`全等
 
 ```javaScript
 /**
@@ -1260,8 +1282,7 @@ function updateWorkInProgressHook() {
   return workInProgressHook;
 }
 ```
-
-执行 useReducer 方法的派发
+`updateReducer`方法，概括一句话就是**找到对应的hook，根据update计算该hook的新state返回**
 
 ```javaScript
 function updateReducer(reducer) {
@@ -1358,6 +1379,189 @@ function updateReducer(reducer) {
   return [hook.memoizedState, dispatch];
 }
 ```
+以官网的reducer举例
+
+```javaScript
+function reducer(state:any, action:any) {
+  switch (action.type) {
+    case 'increment':
+      return {count: state.count + 1};
+    case 'decrement':
+      return {count: state.count - 1};
+    default:
+      throw new Error();
+  }
+}
+
+export default () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  return (
+    <>
+      <button onClick={() =>
+        {
+          dispatch({type: 'increment'})
+          dispatch({type: 'decrement'})
+        }}>{state.count}</button>
+    </>
+  );
+}
+```
+`updateQueue`第一个永远指向最新的状态
+
+```javaScript
+{
+  baseQueue:null,
+  baseState:{
+    count:0
+  },
+  memoizedState:{
+    count:0
+  },
+  next:null,
+  queue:{
+    dispatch:()=>{},
+    lastRenderedReducer:(state,action)=>();
+    lastRenderedState:{
+      count:0
+    },
+    pending:{
+      action:{
+        type:"decrement",
+        eagerState:null,
+        hasEagerState:false,
+        lane:1,
+        next:{
+          type:"increment",
+          eagerState:null,
+          hasEagerState:false,
+          lane:1,
+          next:{
+            // 环形链表
+            ...
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### dispatchAction
+
+执行派发更新逻辑
+
+
+```javaScript
+/**
+ * 执行派发动作的方法，它要更新状态，并且让界面重新更新
+ * @param {*} fiber function对应的fiber
+ * @param {*} queue 当前hook对应的更新队列
+ * @param {*} action 派发的函数
+ */
+function dispatchReducerAction(fiber, queue, action) {
+  //在每个hook里会存放一个更新队列，更新队列是一个更新对象的循环链表update1.next=update2.next=update1
+  const update = {
+    action, //{ type: 'add', payload: 1 } 派发的动作
+    next: null, //指向下一个更新对象
+  };
+  //把当前的最新的更添的添加更新队列中，并且返回当前的根fiber
+  const root = enqueueConcurrentHookUpdate(fiber, queue, update);
+  const eventTime = requestEventTime();
+  // 从root开始更新
+  scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+}
+
+/**
+ * 把更新队列添加到更新队列中
+ * @param {*} fiber 函数组件对应的fiber
+ * @param {*} queue 要更新的hook对应的更新队列
+ * @param {*} update 更新对象
+ */
+export function enqueueConcurrentHookUpdate(fiber, queue, update, lane) {
+  enqueueUpdate(fiber, queue, update, lane);
+  return getRootForUpdatedFiber(fiber);
+}
+```
+
+```javaScript
+/**
+ * @param {*} fiber
+ * @param {*} queue
+ * @param {*} update
+ */
+function enqueueUpdate(updateQueue, update, fiber, lane) {
+const pending = updateQueue.shared.pending;
+	if (pending === null) {
+		// pending = a -> a
+		update.next = update;
+	} else {
+		// pending = b -> a -> b
+		// pending = c -> a -> b -> c
+		update.next = pending.next;
+		pending.next = update;
+	}
+	updateQueue.shared.pending = update;
+
+	fiber.lanes = mergeLanes(fiber.lanes, lane);
+	const alternate = fiber.alternate;
+	if (alternate !== null) {
+		alternate.lanes = mergeLanes(alternate.lanes, lane);
+	}
+}
+```
+
+调用 `getRootForUpdatedFiber`，从当前的 fiber 找到 hostRoot，也就是根节点（FiberRootNode）, div #root，进行调度更新
+
+```javaScript
+function getRootForUpdatedFiber(sourceFiber) {
+  let node = sourceFiber;
+  let parent = node.return;
+  while (parent !== null) {
+    node = parent;
+    parent = node.return;
+  }
+  return node.tag === HostRoot ? node.stateNode : null;  //FiberRootNode div#root
+}
+```
+### useState
+
++ mount阶段
+
+`useState`和`useReducer`区别不大，其中`useReducer`的`lastRenderedReducer`为传入的reducer参数，`useState`的`lastRenderedReducer`为`basicStateReducer`
+
+```javaScript
+// useState
+function basicStateReducer(state, action) {
+  return typeof action === 'function' ? action(state) : action;
+}
+/**
+ * hook的属性
+ * hook.memoizedState 当前 hook真正显示出来的状态
+ * hook.baseState 第一个跳过的更新之前的老状态
+ * hook.queue.lastRenderedState 上一个计算的状态
+ */
+function mountState(initialState) {
+  const hook = mountWorkInProgressHook();
+  hook.memoizedState = hook.baseState = initialState;
+  const queue = {
+    pending: null,
+    dispatch: null,
+    lastRenderedReducer: baseStateReducer, //上一个reducer
+    lastRenderedState: initialState, //上一个state
+  };
+  hook.queue = queue;
+  const dispatch = (queue.dispatch = dispatchSetState.bind(
+    null,
+    currentlyRenderingFiber,
+    queue
+  ));
+  return [hook.memoizedState, dispatch];
+}
+```
+
++ update阶段
+
+在mount阶段，这两者还有区别，但是在update的时候，useState和useReducer调用的同一个函数`updateReducer`
 
 ### DomDiff
 
@@ -1371,12 +1575,12 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 
 ### 单节点
 
-1.新旧节点 type 和 key 都不一样，标记为删除
++ 新旧节点 type 和 key 都不一样，标记为删除
 
-2.如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
++ 如果对比后发现新老节点一样的，那么会复用老节点，复用老节点的 DOM 元素和 Fiber 对象
 再看属性有无变更 ，如果有变化，则会把此 Fiber 节点标准为更新
 
-3.如果 key 相同，但是 type 不同，则不再进行后续对比了，
++ 如果 key 相同，但是 type 不同，则不再进行后续对比了，
 直接把老的节点全部删除
 
 ![avatar](./img/singleDomDiff.jpg)
@@ -1433,6 +1637,30 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 ```
 
 ### 多节点
+
+DOM DIFF 的三个规则
+
++ 只对同级元素进行比较，不同层级不对比
++ 不同的类型对应不同的元素
++ 可以通过 key 来标识同一个节点
+
+第 1 轮遍历
+
++ 如果 key 不同则直接结束本轮循环
++ newChildren 或 oldFiber 遍历完，结束本轮循环
++ key 相同而 type 不同，标记老的 oldFiber 为删除，继续循环
++ key 相同而 type 也相同，则可以复用老节 oldFiber 节点，继续循环
+
+第 2 轮遍历
+
++ newChildren 遍历完而 oldFiber 还有，遍历剩下所有的 oldFiber 标记为删除，DIFF 结束
++ oldFiber 遍历完了，而 newChildren 还有，将剩下的 newChildren 标记为插入，DIFF 结束
++ newChildren 和 oldFiber 都同时遍历完成，diff 结束
++ newChildren 和 oldFiber 都没有完成，则进行节点移动的逻辑
+
+第 3 轮遍历
+
++ 处理节点移动的情况
 
 ```javaScript
 

@@ -18,7 +18,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 + 如果 key 相同，但是 type 不同，则不再进行后续对比了，
 直接把老的节点全部删除
 
-![avatar](./img/singleDomDiff.jpg)
+![avatar](../img/singleDomDiff.jpg)
 
 ```javaScript
 
@@ -167,7 +167,7 @@ DOM DIFF 的三个规则
 
 ```
 
-![avatar](./img/domDiff_move.jpg)
+![avatar](../img/domDiff_move.jpg)
 
 ```javaScript
 

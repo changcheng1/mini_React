@@ -4,7 +4,7 @@ React主要将页面的结构通过JSX进行描述，每一个`React Element`对
 
 ### JSX转换
 
-eact/jsx-runtime 和 react/jsx-dev-runtime 中的函数只能由编译器转换使用，如果你需要在代码中手动创建元素，你可以继续使用 React.createElement
+react/jsx-runtime 和 react/jsx-dev-runtime 中的函数只能由编译器转换使用，如果你需要在代码中手动创建元素，你可以继续使用 React.createElement
 
 ```javaScript
   const sourceCode =  `<h1>

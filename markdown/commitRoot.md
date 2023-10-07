@@ -1,6 +1,6 @@
 <!--
  * @Author: changcheng
- * @LastEditTime: 2023-08-17 18:43:44
+ * @LastEditTime: 2023-10-05 16:35:10
 -->
 
 ### commitRoot
@@ -26,8 +26,10 @@ function commitRootImpl(root) {
     (finishedWork.subtreeFlags & Passive) !== NoFlags ||
     (finishedWork.flags & Passive) !== NoFlags
   ) {
+    //此根节点上有没有useEffect类似的副作用
     if (!rootDoesHavePassiveEffect) {
       rootDoesHavePassiveEffect = true;
+    // 执行刷新副作用，useEffect，这里会根据优先级调用，
       Scheduler_scheduleCallback(NormalSchedulerPriority, flushPassiveEffect);
     }
   }
@@ -53,6 +55,19 @@ function commitRootImpl(root) {
   ensureRootIsScheduled(root, now());
 }
 ```
+执行`effect`副作用
+
+```javaScript
+function flushPassiveEffect() {
+  if (rootWithPendingPassiveEffects !== null) {
+    const root = rootWithPendingPassiveEffects;
+    //执行卸载副作用，destroy
+    commitPassiveUnmountEffects(root.current);
+    //执行挂载副作用 create
+    commitPassiveMountEffects(root, root.current);
+  }
+}
+```
 
 ### commitMutationEffectsOnFiber
 
@@ -60,7 +75,7 @@ function commitRootImpl(root) {
 
 ```javaScript
 /**
- * 遍历fiber树，执行fiber上的副作用
+ * 遍历fiber树，执行fiber上的副作用，dom相关
  * @param {*} finishedWork fiber节点
  * @param {*} root 根节点
  */

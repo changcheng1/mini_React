@@ -1,6 +1,6 @@
 <!--
  * @Author: changcheng
- * @LastEditTime: 2023-10-07 15:29:02
+ * @LastEditTime: 2023-10-07 15:34:57
 -->
 ### 前置知识
 
@@ -178,7 +178,7 @@ JavaScript 执行 Javascript 引擎和页面渲染引擎在同一个渲染线程
 
 如果某个任务执行时间过长，浏览器会推迟渲染
 
-<img src="../img/lifeofframe.jpeg">
+<img src="./img/lifeofframe.jpeg">
 
 ### 模拟时间切片
 
@@ -236,7 +236,7 @@ requestIdleCallback,React 中没有使用`requestIdleCallback`，因为该方法
 
 Fiber 是一个执行单元,每次执行完一个执行单元, React 就会检查现在还剩多少时间，如果没有时间就将控制权让出去
 
-<img src="../img/fiberFlow.png">
+<img src="./img/fiberFlow.png">
 
 ### Fiber 是一种数据结构
 
@@ -297,11 +297,11 @@ export function FiberNode(tag, pendingProps, key) {
 }
 ```
 
-<img src="../img/renderFiber1.jpeg">
+<img src="./img/renderFiber1.jpeg">
 
 ### 递归创建 Fiber 树
 
-<img src="../img/di_gui_gou_jian_fiber_shu.jpeg">
+<img src="./img/di_gui_gou_jian_fiber_shu.jpeg">
 
 ### Fiber 双缓存树
 
@@ -323,13 +323,13 @@ render 阶段会根据最新的 jsx 生成的虚拟 dom 和 current Fiber 树进
 
 diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣成 workInprogress Fiber
 
-![avatar](../img/renderRootFiber.jpg)
+![avatar](./img/renderRootFiber.jpg)
 
 ### 合成事件代理
 
 合成事件是围绕浏览器原生事件充当跨浏览器包装器的对象,它们将不同浏览器的行为合并为一个 API,这样做是为了确保事件在不同浏览器中显示一致的属性，将事件代理在**root 根节点**。
 
-![avatar](../img/registerEventName.png)
+![avatar](./img/registerEventName.png)
 
 `DOMPluginEventSystem`文件中，首先调用`registerEvents`函数，进行注册所有的事件
 
@@ -481,7 +481,7 @@ function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, native
 
 ### 合成事件派发
 
-![avatar](../img/extractEvents2_1678678999496.png)
+![avatar](./img/extractEvents2_1678678999496.png)
 
 `dispatchEvent`执行派发事件，这里其实通过调用`createInstance`方法时，调用`precacheFiberNode`方法，预先缓存 fiber 节点到 DOM 元素上，可以进行一一对应。
 
@@ -601,7 +601,7 @@ function extractEvents(
 
 ### 合成事件提取
 
-![avatar](../img/processDispatchQueue1_1678679016915.png)
+![avatar](./img/processDispatchQueue1_1678679016915.png)
 
 ```javaScript
 function processDispatchQueue(dispatchQueue, eventSystemFlags) {
@@ -657,7 +657,7 @@ function executeDispatch(event, listener, currentTarget) {
 -->
 ### createRoot
 
-![avatar](../img/di_gui_gou_jian_fiber_shu.jpeg)
+![avatar](./img/di_gui_gou_jian_fiber_shu.jpeg)
 
 确定渲染的根节点，同时调用`createFiberRoot`，创建 Fiber 的根节点，FiberRootNode = containerInfo,它的本质就是一个真实的 DOM 节点，div#root，其实就是一个真实的 DOM 节点
 
@@ -814,7 +814,7 @@ React 渲染可以概括为：两大阶段，五小阶段
 
 模拟 React 中 `processUpdateQueue`函数，根据老状态和更新队列中的更新计算最新的状态，与 hook 中的更新队列一样，都是循环链表
 
-![avatar](../img/createUpdateQueue.png)
+![avatar](./img/createUpdateQueue.png)
 
 ```javaScript
 /**
@@ -1431,7 +1431,7 @@ function insertOrAppendPlacementNode(node, before, parent) {
 ```
 ### mountReducer
 
-![avatar](../img/mountReducer_1678679227351.png)
+![avatar](./img/mountReducer_1678679227351.png)
 
 在函数执行之前，也就是`renderWithHooks`函数里，根据`current`和`current.memoizedState`判断是挂载还是更新赋值不同的 dispatch
 
@@ -1522,11 +1522,11 @@ function mountWorkInProgressHook() {
 
 ### updateReducer
 
-![avatar](../img/hookUpdate.jpg)
+![avatar](./img/hookUpdate.jpg)
 
 reducer 更新逻辑：调用`renderWithHooks`以后，判断是否有老的 fiber，还有 fiber 的 memoizedState 状态，（**fiber和hook上都有memoizedState属性，fiber.memoizedState对应的是hook链表，hook.memoizedState对应的是state**），调用`HooksDispatcherOnUpdate`，走更新逻辑,调用`updateWorkInProgressHook`函数，通过当前 Fiber 的 alternate 获取老 Fiber，通过老 Fiber 上的 memoizedState 获取 hook，通过老 hook，创建新 hook，然后赋值 workInProgressHook，创建单向链表，执行 useReducer 方法的派发,此流程`useState`和`useReducer`方法通用
 
-![avatar](../img/memoizedStateQueue.png)
+![avatar](./img/memoizedStateQueue.png)
 
 `currentlyRenderingFiber`就是`workInProgress`，`workInProgress`存在就代表当前是`render`阶段，触发更新的时候，通过`bind`绑定的`fiber`与`workInProgress`全等
 
@@ -1898,7 +1898,7 @@ function updateState(initialState) {
 
 4. 该 Hook 接收一个包含命令式、且可能有副作用代码的函数
 
-![avatar](../img/useLayoutEffect_1666851036689.jpeg)
+![avatar](./img/useLayoutEffect_1666851036689.jpeg)
 
 ### mountEffect
 
@@ -2002,7 +2002,7 @@ function pushEffect(tag, create, destroy, deps) {
 
 ### 执行effect的create方法和destory方法
 
-![avatar](../img/flushPassiveEffects_1666783551920.jpeg)
+![avatar](./img/flushPassiveEffects_1666783551920.jpeg)
 
 在`commitRootImpl`执行中，先通过`finishedWork.subtreeFlags & Passive`|| `finishedWork.flags & Passive) !== NoFlags`，通过`scheduleCallback`函数开启宏任务，执行`flushPassiveEffect`
 
@@ -2214,7 +2214,7 @@ DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 
 + 如果 key 相同，但是 type 不同，则不再进行后续对比了，
 直接把老的节点全部删除
 
-![avatar](../img/singleDomDiff.jpg)
+![avatar](./img/singleDomDiff.jpg)
 
 ```javaScript
 
@@ -2363,7 +2363,7 @@ DOM DIFF 的三个规则
 
 ```
 
-![avatar](../img/domDiff_move.jpg)
+![avatar](./img/domDiff_move.jpg)
 
 ```javaScript
 

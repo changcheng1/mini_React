@@ -1,14 +1,16 @@
 <!--
  * @Author: changcheng
- * @LastEditTime: 2023-10-07 15:34:57
+ * @LastEditTime: 2023-10-08 16:10:11
 -->
-### 前置知识
+## 前置知识
 
 [二进制](./markdown/&|.md)
 
+[最小堆](./markdown/minHeap.md)
+
 [深度优先遍历与广度有限遍历](./markdown/dfs.md)
 
-### 实现
+## 实现
 
 [React18源码一 jsx转换](./markdown/jsx.md)
 
@@ -28,6 +30,7 @@
 
 [React18源码七 domDiff原理](./markdown/domDiff.md)
 
+## JSX
 
 ### 什么是JSX
 
@@ -150,7 +153,7 @@ function ReactElement(type, key, ref, _self, _source, _owner, props) {
 
 为什么使用 Fiber?
 
-### 1.性能瓶颈
+### 性能瓶颈
 
 JS 任务执行时间过长
 
@@ -160,7 +163,7 @@ JS 任务执行时间过长
 
 目前大多数设备的屏幕刷新率为 60 次/秒
 
-### 2.屏幕刷新率
+### 屏幕刷新率
 
 浏览器渲染动画或页面的每一帧的速率也需要跟设备屏幕的刷新率保持一致
 
@@ -170,7 +173,7 @@ JS 任务执行时间过长
 
 1s 60 帧，所以每一帧分到的时间是 1000/60 ≈ 16 ms。所以我们书写代码时力求不让一帧的工作量超过 16ms
 
-### 3.帧
+### 帧
 
 每个帧的开头包括样式计算、布局和绘制
 
@@ -324,6 +327,8 @@ render 阶段会根据最新的 jsx 生成的虚拟 dom 和 current Fiber 树进
 diff ⽐较的是什么？ ⽐较的是 current fiber 和 vdom，⽐较之后⽣成 workInprogress Fiber
 
 ![avatar](./img/renderRootFiber.jpg)
+
+## 事件代理
 
 ### 合成事件代理
 
@@ -651,6 +656,8 @@ function executeDispatch(event, listener, currentTarget) {
 }
 ```
 
+## reconciler
+
 <!--
  * @Author: changcheng
  * @LastEditTime: 2023-10-04 16:08:47
@@ -899,7 +906,9 @@ console.log(fiber.memoizedState); // { name: 'cc', age: 18, sex: '男' }
 
 ```
 
-### scheduleUpdateOnFiber 计划更新 Root,同步或者异步
+### scheduleUpdateOnFiber
+
+ 计划更新 Root,同步或者异步
 
 ```javaScript
 /**
@@ -981,7 +990,7 @@ function ensureRootIsScheduled(root, currentTime) {
 
 ```
 
-### performSyncWorkOnRoot 同步执行
+### performSyncWorkOnRoot
 
 `prepareFreshStack`函数非常重要，这里构建了`workInProgress`树
 
@@ -1249,6 +1258,7 @@ function bubbleProperties(completedWork) {
 
 ```
 
+## 提交阶段
 ### commitEffects
 
 React中的commit分为三个阶段
@@ -1429,6 +1439,8 @@ function insertOrAppendPlacementNode(node, before, parent) {
   }
 }
 ```
+
+## useReducer
 ### mountReducer
 
 ![avatar](./img/mountReducer_1678679227351.png)
@@ -1800,11 +1812,12 @@ function getRootForUpdatedFiber(sourceFiber) {
 }
 ```
 
+## useState
 <!--
  * @Author: changcheng
  * @LastEditTime: 2023-10-04 21:59:45
 -->
-### useState
+### mountState & updateState
 
 + mount阶段
 
@@ -1884,10 +1897,8 @@ function updateState(initialState) {
   return updateReducer(baseStateReducer, initialState);
 }
 ```
-<!--
- * @Author: changcheng
- * @LastEditTime: 2023-10-05 21:12:17
--->
+
+## mountEffect & updateEffecr
 ### useEffect
 
 1. 在函数组件主体内（这里指在 React 渲染阶段）改变 DOM、添加订阅、设置定时器、记录日志以及执行其他包含副作用的操作都是不被允许的，因为这可能会产生莫名其妙的 bug 并破坏 UI 的一致性
@@ -2129,11 +2140,9 @@ function commitHookEffectListMount(flags, finishedWork) {
 }
 ```
 
-<!--
- * @Author: changcheng
- * @LastEditTime: 2023-10-07 14:37:21
--->
-### useLayoutEffect
+## useLayoutEffect
+
+### mountUseLayoutEffect & updateUseLayoutEffect
 
 1. 其函数签名与 useEffect 相同，但它会在所有的 DOM 变更之后同步调用 effect
 
@@ -2194,7 +2203,7 @@ function commitRootImpl(root) {
   ensureRootIsScheduled(root, now());
 }
 ```
-### DomDiff
+## DomDiff
 
 DomDiff 的过程其实就是老的 Fiber 树 和 新的 jsx 对比生成新的 Fiber 树 的过程，分为单节点和多节点两种分别对应**reconcileSingleElement**和**reconcileChildrenArray**
 

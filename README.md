@@ -1,6 +1,6 @@
 <!--
  * @Author: changcheng
- * @LastEditTime: 2023-10-08 16:16:29
+ * @LastEditTime: 2023-10-08 16:18:28
 -->
 ###  前置知识
 
@@ -8,7 +8,7 @@
 
  [最小堆](./markdown/minHeap.md)
 
- [深度优先遍历与广度有限遍历](./markdown/dfs.md)
+ [深度优先遍历与广度优先遍历](./markdown/dfs.md)
 
 ## JSX
 
